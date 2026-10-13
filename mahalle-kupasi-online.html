@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mahalle Kupası</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<style>
+
+:root{
+  --bg:#eef2ea; --panel:#ffffff; --ink:#17201a; --muted:#5b6b5f; --line:#d6ddd2;
+  --red:#e2483d; --blue:#2f6fd0; --accent:#f5c518; --field:#1f4426;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1811; --panel:#17241b; --ink:#e8efe6; --muted:#9fb1a3; --line:#2a3b2f;
+  }
+}
+:root[data-theme="dark"]{ --bg:#0e1811; --panel:#17241b; --ink:#e8efe6; --muted:#9fb1a3; --line:#2a3b2f; }
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex; flex-direction:column; overflow:hidden;
+  -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+}
+.bar{
+  display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+  padding:8px 12px; gap:8px; background:var(--panel); border-bottom:1px solid var(--line);
+}
+.team{display:flex; align-items:center; gap:8px; font-weight:600; font-size:.95rem}
+.team.right{justify-content:flex-end}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,.35)}
+.score{
+  font-family:"Bungee","Impact","Arial Black",sans-serif; font-size:1.6rem; line-height:1;
+  display:flex; align-items:center; gap:10px; justify-content:center;
+}
+.score small{display:block;font-family:"Rubik",sans-serif;font-size:.75rem;color:var(--muted);text-align:center;margin-top:3px;font-weight:600}
+.pausebtn{
+  margin-left:8px; border:1px solid var(--line); background:transparent; color:var(--ink);
+  border-radius:8px; width:34px; height:34px; font-size:14px; cursor:pointer;
+}
+#stage{position:relative; flex:1; min-height:0; background:var(--field); touch-action:none; overflow:hidden}
+canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.overlay{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(10,20,12,.55); padding:16px; z-index:5;
+}
+.overlay.hidden{display:none}
+.card{
+  background:var(--panel); color:var(--ink); border-radius:18px; padding:22px 22px 18px;
+  width:min(360px,100%); box-shadow:0 18px 50px rgba(0,0,0,.35);
+}
+.logo{
+  font-family:"Bungee","Impact","Arial Black",sans-serif; font-size:2.1rem; line-height:1;
+  margin:0 0 6px; color:var(--ink);
+}
+.logo span{display:block; font-size:1rem; color:var(--muted); font-family:"Rubik",sans-serif; font-weight:600; margin-top:6px}
+.card p{margin:8px 0; color:var(--muted); font-size:.92rem; line-height:1.45}
+.label{font-weight:600; font-size:.9rem; margin:14px 0 6px}
+.seg{display:grid; grid-template-columns:repeat(3,1fr); border:2px solid var(--ink); border-radius:12px; overflow:hidden}
+.seg button{border:0; background:transparent; color:var(--ink); padding:10px 4px; font:600 .95rem "Rubik",sans-serif; cursor:pointer}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--panel)}
+.btn{
+  display:block; width:100%; margin-top:12px; border:0; border-radius:12px; padding:13px;
+  font:800 1rem "Rubik",sans-serif; cursor:pointer; background:var(--red); color:#fff;
+  box-shadow:0 4px 0 #a52c23;
+}
+.btn:active{transform:translateY(2px); box-shadow:0 2px 0 #a52c23}
+.btn.alt{background:transparent; color:var(--ink); border:2px solid var(--ink); box-shadow:none}
+.btn:focus-visible,.seg button:focus-visible,.pausebtn:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+.keys{font-size:.82rem; color:var(--muted); margin-top:12px; line-height:1.5}
+kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:0 5px; color:var(--ink)}
+.result{font-family:"Bungee","Impact",sans-serif; font-size:2.6rem; text-align:center; margin:4px 0}
+#goalFx{
+  position:absolute; left:50%; top:42%; transform:translate(-50%,-50%) scale(.6);
+  font-family:"Bungee","Impact","Arial Black",sans-serif; font-size:clamp(3rem,14vw,7rem);
+  color:#fff; opacity:0; pointer-events:none; z-index:4;
+  text-shadow:0 6px 0 rgba(0,0,0,.35);
+}
+#goalFx.show{animation:goal 1.4s ease-out forwards}
+@keyframes goal{
+  0%{opacity:0; transform:translate(-50%,-50%) scale(.4) rotate(-8deg)}
+  18%{opacity:1; transform:translate(-50%,-50%) scale(1.15) rotate(3deg)}
+  30%{transform:translate(-50%,-50%) scale(1) rotate(0)}
+  80%{opacity:1}
+  100%{opacity:0; transform:translate(-50%,-50%) scale(1.05)}
+}
+@media (prefers-reduced-motion: reduce){
+  #goalFx.show{animation:none; opacity:1; transform:translate(-50%,-50%)}
+}
+#joy{
+  position:absolute; width:110px; height:110px; margin:-55px 0 0 -55px; border-radius:50%;
+  border:3px solid rgba(255,255,255,.55); background:rgba(255,255,255,.08); display:none; z-index:3; pointer-events:none;
+}
+#knob{position:absolute; left:50%; top:50%; width:46px; height:46px; margin:-23px 0 0 -23px; border-radius:50%; background:rgba(255,255,255,.75)}
+#kickHint{
+  position:absolute; right:calc(18px + env(safe-area-inset-right,0px)); bottom:22px; width:84px; height:84px; border-radius:50%;
+  background:rgba(245,197,24,.85); color:#1b1b1b; display:none; align-items:center; justify-content:center;
+  font:800 1.05rem "Rubik",sans-serif; z-index:3; pointer-events:none; border:3px solid rgba(0,0,0,.25);
+}
+#kickHint.on{background:#fff}
+#moveHint{
+  position:absolute; left:18px; bottom:30px; color:rgba(255,255,255,.7); font-size:.85rem; font-weight:600;
+  display:none; z-index:3; pointer-events:none; max-width:45%;
+}
+.touch #kickHint{display:flex}
+.touch #moveHint{display:block}
+.touch .desk{display:none}
+.nottouch .mob{display:none}
+.wallet{display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:14px}
+.wallet canvas{width:40px;height:40px;flex:none}
+.wallet b{display:block;font-size:1.05rem}
+.wallet small{color:var(--muted);font-size:.85rem}
+#market .card{width:min(460px,100%);max-height:100%;display:flex;flex-direction:column}
+.mk-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mk-gold{font-weight:800;font-size:1.05rem;color:#c99a06}
+.mk-msg{min-height:1.3em;font-weight:600;color:var(--ink)!important;margin:4px 0!important}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;overflow-y:auto;padding:4px 2px;flex:1;min-height:0}
+.mk-item{border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.mk-item.eq{border:2px solid var(--red)}
+.mk-item canvas{width:52px;height:52px}
+.mk-name{font-size:.85rem;font-weight:600}
+.mk-btn{width:100%;border:0;border-radius:8px;padding:7px 4px;font:700 .8rem "Rubik",sans-serif;cursor:pointer;background:var(--ink);color:var(--panel)}
+.mk-btn.free{background:#2e9d4f;color:#fff}
+.mk-btn.buy{background:#f5c518;color:#1b1b1b}
+.mk-btn.buy.poor{opacity:.5}
+.mk-btn:disabled{background:transparent;color:var(--muted);border:1px solid var(--line);cursor:default}
+.mk-btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.gain{text-align:center;font-weight:800;color:#c99a06!important}
+
+.inp{width:100%;padding:11px 12px;border:2px solid var(--ink);border-radius:12px;background:transparent;color:var(--ink);font:600 1rem "Rubik",sans-serif}
+.inp:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:stretch}
+.row .inp{flex:1;min-width:0}
+.row .btn{width:auto;margin-top:0;padding:11px 16px}
+.linkbox{padding:9px 10px;border:1px dashed var(--muted);border-radius:10px;font-size:.85rem;word-break:break-all;color:var(--ink);margin-top:6px}
+.code{font-family:"Bungee","Impact",sans-serif;letter-spacing:.08em;color:var(--red)}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.teams ul{list-style:none;margin:6px 0 0;padding:0;font-size:.92rem}
+.teams li{padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teams li.me{font-weight:800;border-color:var(--ink)}
+.tr{color:var(--red)} .tb{color:var(--blue)}
+.btn.small{margin-top:8px;padding:10px;font-size:.9rem}
+#lobby .card,#online .card,#menu .card{max-height:100%;overflow:auto}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="team"><span class="dot" style="background:var(--red)"></span><span id="nameL">Sen</span></div>
+  <div class="score"><div><span id="sL">0</span> : <span id="sR">0</span><small id="clock">3:00</small></div></div>
+  <div class="team right"><span id="nameR">Bot</span><span class="dot" style="background:var(--blue)"></span>
+    <button class="pausebtn" id="pauseBtn" aria-label="Duraklat">❚❚</button></div>
+</header>
+
+<main id="stage">
+  <canvas id="c"></canvas>
+  <div id="joy"><div id="knob"></div></div>
+  <div id="kickHint">Şut</div>
+  <div id="moveHint">Sol tarafa dokunup sürükle</div>
+  <div id="goalFx">GOL!</div>
+
+  <div class="overlay" id="menu">
+    <div class="card">
+      <h1 class="logo">Mahalle Kupası<span>Topu kaleye sok, rakibini geç.</span></h1>
+      <div class="wallet"><canvas id="skinPrev" width="80" height="80"></canvas><div><b id="goldTxt">0 altın</b><small id="skinTxt">Skin yok</small></div></div>
+      <div class="label">Adın</div>
+      <input class="inp" id="nameIn" maxlength="12" placeholder="Oyuncu" autocomplete="off">
+      <button class="btn" id="openOnline">Arkadaşlarla online oyna</button>
+      <div class="label">Bot zorluğu</div>
+      <div class="seg" id="diff">
+        <button data-d="easy" aria-pressed="false">Kolay</button>
+        <button data-d="normal" aria-pressed="true">Orta</button>
+        <button data-d="hard" aria-pressed="false">Zor</button>
+      </div>
+      <button class="btn" id="playBot">Bota karşı oyna</button>
+      <button class="btn alt" id="openMarket">Market</button>
+      <button class="btn alt desk" id="play2p">İki kişi, aynı klavye</button>
+      <div class="keys desk">
+        Hareket: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> veya oklar, şut <kbd>Boşluk</kbd><br>
+        İki kişide mavi: oklar, şut <kbd>Enter</kbd> · Duraklat <kbd>Esc</kbd>
+      </div>
+      <div class="keys mob">Sol tarafta parmağını sürükleyerek koş, sağ tarafa basılı tutarak şut çek.</div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="online">
+    <div class="card">
+      <h2 class="logo" style="font-size:1.6rem">Online oyna</h2>
+      <p class="mk-msg" id="onMsg"></p>
+      <div class="label">Adın</div>
+      <input class="inp" id="onName" maxlength="12" placeholder="Oyuncu" autocomplete="off">
+      <button class="btn" id="onHost">Oda kur</button>
+      <div class="label">veya oda koduyla katıl</div>
+      <div class="row"><input class="inp" id="onCode" maxlength="5" placeholder="Kod" autocomplete="off" autocapitalize="characters"><button class="btn" id="onJoin">Katıl</button></div>
+      <button class="btn alt" id="onBack">Geri</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="lobby">
+    <div class="card">
+      <h2 class="logo" style="font-size:1.5rem;margin-bottom:4px">Oda <span class="code" id="lbCode"></span></h2>
+      <div id="lbShare">
+        <p id="lbHint">Bu linki arkadaşlarına gönder, tıklayınca odaya gelirler:</p>
+        <div class="linkbox" id="lbLink"></div>
+        <div class="row" style="margin-top:8px"><button class="btn small" id="lbCopy" style="flex:1">Linki kopyala</button><button class="btn small alt" id="lbShareBtn" style="flex:1">Paylaş</button></div>
+      </div>
+      <div class="teams">
+        <div><b class="tr">Kırmızı</b><ul id="lbRed"></ul></div>
+        <div><b class="tb">Mavi</b><ul id="lbBlue"></ul></div>
+      </div>
+      <p class="mk-msg" id="lbMsg"></p>
+      <button class="btn alt" id="lbSwitch">Takımımı değiştir</button>
+      <button class="btn" id="lbStart">Maçı başlat</button>
+      <p id="lbWait" style="text-align:center">Oda sahibinin maçı başlatması bekleniyor.</p>
+      <button class="btn alt" id="lbLeave">Odadan çık</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="market">
+    <div class="card">
+      <div class="mk-head"><h2 class="logo" style="font-size:1.6rem;margin:0">Market</h2><span class="mk-gold" id="mkGold">0 altın</span></div>
+      <p>İlk skinin bedava. Diğerleri 100 altın. Bota karşı her galibiyet: Kolay 15, Orta 25, Zor 40 altın.</p>
+      <p class="mk-msg" id="mkMsg"></p>
+      <div class="mk-grid" id="mkGrid"></div>
+      <button class="btn alt" id="closeMarket">Geri</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="pause">
+    <div class="card">
+      <h2 class="logo" style="font-size:1.6rem">Mola</h2>
+      <button class="btn" id="resume">Devam et</button>
+      <button class="btn alt" id="toMenu1">Menüye dön</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="over">
+    <div class="card">
+      <div class="result" id="resText">2 : 1</div>
+      <p id="resSub" style="text-align:center;font-weight:600;color:var(--ink)">Kazandın!</p>
+      <p id="resGold" class="gain"></p>
+      <button class="btn" id="again">Tekrar oyna</button>
+      <button class="btn" id="overLobby">Lobiye dön</button>
+      <p id="overWait" style="text-align:center">Oda sahibi lobiye dönünce yeni maç başlar.</p>
+      <button class="btn alt" id="toMenu2">Menüye dön</button>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+const W=840, H=440, L=40, R=800, T=40, B=400, GT=170, GB=270, GD=32;
+const PR=15, BR=10, MATCH_SECONDS=180, MAXP=6;
+const POSTS=[{x:L,y:GT},{x:L,y:GB},{x:R,y:GT},{x:R,y:GB}].map(p=>({...p,r:6,im:0,vx:0,vy:0}));
+const TEAMC={red:'#e2483d',blue:'#2f6fd0'};
+const DIFF={
+  easy:  {acc:0.78, think:12, kickAlign:0.35, err:0.45, kickChance:0.5},
+  normal:{acc:0.93, think:6,  kickAlign:0.7,  err:0.18, kickChance:0.85},
+  hard:  {acc:1.03, think:2,  kickAlign:0.82, err:0.05, kickChance:1}
+};
+const isTouch = ('ontouchstart' in window) || matchMedia('(pointer: coarse)').matches;
+document.body.classList.add(isTouch?'touch':'nottouch');
+const $=id=>document.getElementById(id);
+
+// ---------- Kayıt ve skinler ----------
+const SAVE_KEY='mk_save_v1';
+let save={gold:0,owned:[],equipped:null};
+try{ const raw=localStorage.getItem(SAVE_KEY); if(raw){ const o=JSON.parse(raw); if(o&&Array.isArray(o.owned)) save={gold:+o.gold||0,owned:o.owned,equipped:o.equipped||null}; } }catch(e){}
+function persist(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(save)); }catch(e){} }
+const REWARD={easy:15,normal:25,hard:40}, PRICE=100;
+const SKINS=[
+  ['tr','Türkiye'],['az','Azerbaycan'],['de','Almanya'],['fr','Fransa'],['it','İtalya'],['es','İspanya'],
+  ['pt','Portekiz'],['eng','İngiltere'],['nl','Hollanda'],['be','Belçika'],['se','İsveç'],['ua','Ukrayna'],
+  ['br','Brezilya'],['ar','Arjantin'],['mx','Meksika'],['us','ABD'],['jp','Japonya']
+];
+const skinName=c=>(SKINS.find(s=>s[0]===c)||[,''])[1];
+function drawFlag(c,code,r){
+  const s=2*r, x0=-r, y0=-r;
+  const rect=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h);};
+  const H3=(a,b,d)=>{rect(x0,y0,s,s/3+.5,a);rect(x0,y0+s/3,s,s/3+.5,b);rect(x0,y0+2*s/3,s,s/3,d);};
+  const V3=(a,b,d)=>{rect(x0,y0,s/3+.5,s,a);rect(x0+s/3,y0,s/3+.5,s,b);rect(x0+2*s/3,y0,s/3,s,d);};
+  const dot=(x,y,rr,col)=>{c.fillStyle=col;c.beginPath();c.arc(x,y,rr,0,Math.PI*2);c.fill();};
+  const star=(cx,cy,R,col)=>{c.fillStyle=col;c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5, rr=i%2?R*.42:R;c.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);}c.closePath();c.fill();};
+  c.save(); c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.clip();
+  switch(code){
+    case 'tr': rect(x0,y0,s,s,'#E30A17'); dot(-.2*r,0,.5*r,'#fff'); dot(-.07*r,0,.4*r,'#E30A17'); star(.42*r,0,.2*r,'#fff'); break;
+    case 'az': H3('#00B5E2','#EF3340','#509E2F'); dot(-.06*r,0,.22*r,'#fff'); dot(.02*r,0,.18*r,'#EF3340'); star(.26*r,0,.11*r,'#fff'); break;
+    case 'de': H3('#111','#DD0000','#FFCE00'); break;
+    case 'fr': V3('#0055A4','#fff','#EF4135'); break;
+    case 'it': V3('#009246','#fff','#CE2B37'); break;
+    case 'es': rect(x0,y0,s,s,'#AA151B'); rect(x0,-r/2,s,r,'#F1BF00'); break;
+    case 'pt': rect(x0,y0,s,s,'#FF0000'); rect(x0,y0,.8*r,s,'#006600'); dot(-.2*r,0,.34*r,'#FFCC00'); dot(-.2*r,0,.24*r,'#FF0000'); dot(-.2*r,0,.13*r,'#fff'); break;
+    case 'eng': rect(x0,y0,s,s,'#fff'); rect(-.18*r,y0,.36*r,s,'#CE1124'); rect(x0,-.18*r,s,.36*r,'#CE1124'); break;
+    case 'nl': H3('#AE1C28','#fff','#21468B'); break;
+    case 'be': V3('#111','#FDDA24','#EF3340'); break;
+    case 'se': rect(x0,y0,s,s,'#006AA7'); rect(-.45*r,y0,.36*r,s,'#FECC00'); rect(x0,-.18*r,s,.36*r,'#FECC00'); break;
+    case 'ua': rect(x0,y0,s,r,'#0057B7'); rect(x0,0,s,r,'#FFD700'); break;
+    case 'br': rect(x0,y0,s,s,'#009C3B'); c.fillStyle='#FFDF00'; c.beginPath(); c.moveTo(0,-.72*r); c.lineTo(.88*r,0); c.lineTo(0,.72*r); c.lineTo(-.88*r,0); c.closePath(); c.fill(); dot(0,0,.38*r,'#002776'); break;
+    case 'ar': H3('#74ACDF','#fff','#74ACDF'); dot(0,0,.17*r,'#F6B40E'); break;
+    case 'mx': V3('#006847','#fff','#CE1126'); dot(0,0,.2*r,'#8C5A2B'); break;
+    case 'us': for(let i=0;i<7;i++) rect(x0,y0+i*s/7,s,s/7+.5,i%2?'#fff':'#B22234'); rect(x0,y0,.95*r,4*s/7,'#3C3B6E'); for(let i=0;i<3;i++)for(let j=0;j<3;j++) dot(x0+.2*r+i*.27*r,y0+.25*r+j*.3*r,.06*r,'#fff'); break;
+    case 'jp': rect(x0,y0,s,s,'#fff'); dot(0,0,.45*r,'#BC002D'); break;
+  }
+  c.restore();
+}
+function drawSkinDisc(p,code,kick){
+  ctx.fillStyle='rgba(0,0,0,.22)'; circle(p.x+2,p.y+3,p.r); ctx.fill();
+  ctx.save(); ctx.translate(p.x,p.y); if(portrait) ctx.rotate(Math.PI/2); drawFlag(ctx,code,p.r); ctx.restore();
+  circle(p.x,p.y,p.r); ctx.lineWidth=kick?3.5:2.5; ctx.strokeStyle=kick?'#ffffff':'#111'; ctx.stroke();
+  if(!kick){ circle(p.x,p.y,p.r+2.5); ctx.lineWidth=2; ctx.strokeStyle='#e2483d'; ctx.stroke(); }
+}
+function paintIcon(cnv,code){
+  const c=cnv.getContext('2d'), w=cnv.width, r=w/2-4;
+  c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,w,w); c.translate(w/2,w/2);
+  if(code) drawFlag(c,code,r); else { c.fillStyle='#e2483d'; c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.fill(); }
+  c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.lineWidth=3; c.strokeStyle='#111'; c.stroke();
+}
+function refreshWallet(){
+  document.getElementById('goldTxt').textContent=`${save.gold} altın`;
+  document.getElementById('skinTxt').textContent= save.equipped ? `Skin: ${skinName(save.equipped)}` : 'Skin yok, marketten bedava seç';
+  paintIcon(document.getElementById('skinPrev'),save.equipped);
+}
+function renderMarket(msg){
+  document.getElementById('mkGold').textContent=`${save.gold} altın`;
+  document.getElementById('mkMsg').textContent=msg||'';
+  const grid=document.getElementById('mkGrid'); grid.innerHTML='';
+  const firstFree = save.owned.length===0;
+  for(const [code,name] of SKINS){
+    const owned=save.owned.includes(code), eq=save.equipped===code;
+    const item=document.createElement('div'); item.className='mk-item'+(eq?' eq':'');
+    const cnv=document.createElement('canvas'); cnv.width=cnv.height=104; paintIcon(cnv,code);
+    const nm=document.createElement('div'); nm.className='mk-name'; nm.textContent=name;
+    const b=document.createElement('button'); b.className='mk-btn';
+    if(eq){ b.textContent='Kullanılıyor'; b.disabled=true; }
+    else if(owned){ b.textContent='Kullan'; b.onclick=()=>{ save.equipped=code; persist(); renderMarket(`${name} giyildi.`); refreshWallet(); }; }
+    else if(firstFree){ b.textContent='Bedava al'; b.classList.add('free'); b.onclick=()=>{ save.owned.push(code); save.equipped=code; persist(); renderMarket(`${name} senin! Sonrakiler 100 altın.`); refreshWallet(); }; }
+    else { b.textContent=`${PRICE} altın`; b.classList.add('buy'); if(save.gold<PRICE) b.classList.add('poor');
+      b.onclick=()=>{ if(save.gold<PRICE){ renderMarket(`${PRICE-save.gold} altın daha lazım. Maç kazanarak topla.`); return; }
+        save.gold-=PRICE; save.owned.push(code); save.equipped=code; persist(); renderMarket(`${name} alındı ve giyildi.`); refreshWallet(); }; }
+    item.append(cnv,nm,b); grid.appendChild(item);
+  }
+}
+
+
+
+// ---------- İsim ----------
+const nameIn=$('nameIn');
+try{ nameIn.value=localStorage.getItem('mk_name')||''; }catch(e){}
+nameIn.addEventListener('input',()=>{ try{localStorage.setItem('mk_name',nameIn.value.trim());}catch(e){} });
+const myName=()=>(nameIn.value.trim()||'Oyuncu').slice(0,12);
+
+// ---------- Durum ----------
+let mode='bot', diff='normal', state='menu';
+let scoreL=0, scoreR=0, timeLeft=MATCH_SECONDS, golden=false, goalTimer=0;
+const ball={x:W/2,y:H/2,vx:0,vy:0,r:BR,im:1};
+let players=[];
+const botMem={timer:0,ix:0,iy:0,kick:false};
+function mkPlayer(id,name,team,skin,ctrl){ return {id,name,team,skin:skin||null,ctrl,x:W/2,y:H/2,vx:0,vy:0,r:PR,im:0.5,cd:0,kick:false,ix:0,iy:0}; }
+const OFFS=[0,-90,90,-160,160];
+function spot(team,i){ return {x: team==='red' ? L+150-(i>0?45:0) : R-150+(i>0?45:0), y:H/2+OFFS[i%5]}; }
+function kickoff(){
+  const cnt={red:0,blue:0};
+  for(const p of players){ const s=spot(p.team,cnt[p.team]++); p.x=s.x; p.y=s.y; p.vx=p.vy=0; p.cd=0; }
+  ball.x=W/2; ball.y=H/2; ball.vx=ball.vy=0;
+}
+
+// ---------- Ses ----------
+let actx=null;
+function initAudio(){ try{ if(!actx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC) actx=new AC(); } if(actx&&actx.state==='suspended') actx.resume(); }catch(e){} }
+function beep(f,dur,type,vol,delay){
+  if(!actx) return;
+  try{
+    const t=actx.currentTime+(delay||0), o=actx.createOscillator(), g=actx.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+dur+0.02);
+  }catch(e){}
+}
+
+// ---------- Girdi ----------
+const keys=new Set();
+addEventListener('keydown',e=>{
+  if(e.target && e.target.tagName==='INPUT') return;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code) && (state==='play'||state==='goal')) e.preventDefault();
+  if(e.code==='Escape'||e.code==='KeyP'){ togglePause(); return; }
+  keys.add(e.code);
+});
+addEventListener('keyup',e=>keys.delete(e.code));
+addEventListener('blur',()=>keys.clear());
+const k=c=>keys.has(c)?1:0;
+let portrait=false;
+function toWorld(sx,sy){ return portrait?{x:-sy,y:sx}:{x:sx,y:sy}; }
+
+const stage=$('stage'), joy=$('joy'), knob=$('knob'), kickHint=$('kickHint');
+const touch={joyId:null,ox:0,oy:0,vx:0,vy:0,kickIds:new Set()};
+stage.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.overlay')) return;
+  if(e.pointerType==='mouse') return;
+  const r=stage.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+  if(x<r.width*0.55 && touch.joyId===null){
+    touch.joyId=e.pointerId; touch.ox=x; touch.oy=y; touch.vx=touch.vy=0;
+    joy.style.left=x+'px'; joy.style.top=y+'px'; joy.style.display='block'; knob.style.transform='translate(0,0)';
+  } else { touch.kickIds.add(e.pointerId); kickHint.classList.add('on'); }
+  try{stage.setPointerCapture(e.pointerId);}catch(_){}
+  e.preventDefault();
+});
+stage.addEventListener('pointermove',e=>{
+  if(e.pointerId!==touch.joyId) return;
+  const r=stage.getBoundingClientRect();
+  let dx=e.clientX-r.left-touch.ox, dy=e.clientY-r.top-touch.oy;
+  const d=Math.hypot(dx,dy), max=48;
+  if(d>max){dx=dx/d*max; dy=dy/d*max;}
+  knob.style.transform=`translate(${dx}px,${dy}px)`;
+  touch.vx = d>6 ? dx/max : 0; touch.vy = d>6 ? dy/max : 0;
+});
+function endPointer(e){
+  if(e.pointerId===touch.joyId){ touch.joyId=null; touch.vx=touch.vy=0; joy.style.display='none'; }
+  if(touch.kickIds.delete(e.pointerId) && touch.kickIds.size===0) kickHint.classList.remove('on');
+}
+stage.addEventListener('pointerup',endPointer);
+stage.addEventListener('pointercancel',endPointer);
+
+function localInput(ctrl){
+  let sx=0,sy=0,kick=false;
+  if(ctrl==='local'){
+    sx=(k('KeyD')||k('ArrowRight'))-(k('KeyA')||k('ArrowLeft'));
+    sy=(k('KeyS')||k('ArrowDown'))-(k('KeyW')||k('ArrowUp'));
+    kick=!!(k('Space')||k('KeyX')||k('KeyK')||k('Enter'));
+    if(touch.joyId!==null){ sx+=touch.vx; sy+=touch.vy; }
+    if(touch.kickIds.size) kick=true;
+  } else if(ctrl==='kb1'){
+    sx=k('KeyD')-k('KeyA'); sy=k('KeyS')-k('KeyW'); kick=!!(k('Space')||k('KeyX'));
+  } else if(ctrl==='kb2'){
+    sx=k('ArrowRight')-k('ArrowLeft'); sy=k('ArrowDown')-k('ArrowUp'); kick=!!(k('Enter')||k('ShiftRight')||k('Numpad0'));
+  }
+  const v=toWorld(sx,sy); return {x:v.x,y:v.y,k:kick};
+}
+
+// ---------- Bot ----------
+function botThink(me){
+  const D=DIFF[diff];
+  if(--botMem.timer>0){ me.ix=botMem.ix; me.iy=botMem.iy; me.kick=botMem.kick && Math.random()<D.kickChance; return; }
+  botMem.timer=D.think;
+  const tgx=L-10, tgy=H/2;
+  const dB=Math.hypot(ball.x-me.x,ball.y-me.y)||1;
+  const lead=Math.min(dB/7,18);
+  const px=ball.x+ball.vx*lead, py=ball.y+ball.vy*lead;
+  let ux=tgx-px, uy=tgy-py; const ul=Math.hypot(ux,uy)||1; ux/=ul; uy/=ul;
+  const e=(Math.random()*2-1)*D.err, c=Math.cos(e), s=Math.sin(e);
+  [ux,uy]=[ux*c-uy*s, ux*s+uy*c];
+  const reach=PR+BR;
+  const align=((ball.x-me.x)/dB)*ux+((ball.y-me.y)/dB)*uy;
+  let tx,ty,kick=false;
+  if(me.x < ball.x-4 && align<0.2){ tx=px+38; ty=py+(me.y<py?-34:34); }
+  else if(align>0.55 && dB<reach+28){ tx=ball.x+ux*14; ty=ball.y+uy*14; kick = dB<reach+6 && align>D.kickAlign; }
+  else { tx=px-ux*(reach+4); ty=py-uy*(reach+4); }
+  ty=Math.max(T-10,Math.min(B+10,ty)); tx=Math.max(L-5,Math.min(R+20,tx));
+  let mx=tx-me.x, my=ty-me.y; const md=Math.hypot(mx,my);
+  if(md<3){mx=my=0;} else { const f=Math.min(1,md/20); mx=mx/md*f; my=my/md*f; }
+  botMem.ix=mx; botMem.iy=my; botMem.kick=kick;
+  me.ix=mx; me.iy=my; me.kick=kick && Math.random()<D.kickChance;
+}
+
+// ---------- Fizik ----------
+function collide(a,b,e){
+  const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy), min=a.r+b.r;
+  if(d>=min||d===0) return;
+  const nx=dx/d, ny=dy/d, im=a.im+b.im; if(im===0) return;
+  const ov=min-d;
+  a.x-=nx*ov*a.im/im; a.y-=ny*ov*a.im/im; b.x+=nx*ov*b.im/im; b.y+=ny*ov*b.im/im;
+  const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+  if(vn<0){ const j=-(1+e)*vn/im; a.vx-=j*nx*a.im; a.vy-=j*ny*a.im; b.vx+=j*nx*b.im; b.vy+=j*ny*b.im; }
+}
+function movePlayer(p,accMul){
+  let ix=p.ix, iy=p.iy; const il=Math.hypot(ix,iy); if(il>1){ix/=il; iy/=il;}
+  const a=(p.kick?0.21:0.29)*accMul;
+  p.vx+=ix*a; p.vy+=iy*a; p.vx*=0.955; p.vy*=0.955;
+  p.x+=p.vx; p.y+=p.vy;
+  if(p.x<p.r){p.x=p.r;p.vx=0} if(p.x>W-p.r){p.x=W-p.r;p.vx=0}
+  if(p.y<p.r){p.y=p.r;p.vy=0} if(p.y>H-p.r){p.y=H-p.r;p.vy=0}
+  if(p.cd>0) p.cd--;
+}
+function ballWalls(){
+  const b=ball, r=b.r, bc=0.72;
+  if(b.x<L || b.x>R){
+    if(b.y-r<GT){b.y=GT+r; b.vy=-b.vy*0.4;}
+    if(b.y+r>GB){b.y=GB-r; b.vy=-b.vy*0.4;}
+  }
+  if(!(b.y>GT && b.y<GB)){
+    if(b.x-r<L){b.x=L+r; b.vx=-b.vx*bc;}
+    if(b.x+r>R){b.x=R-r; b.vx=-b.vx*bc;}
+  } else {
+    if(b.x-r<L-GD){b.x=L-GD+r; b.vx=-b.vx*0.25;}
+    if(b.x+r>R+GD){b.x=R+GD-r; b.vx=-b.vx*0.25;}
+  }
+  if(b.y-r<T){b.y=T+r; b.vy=-b.vy*bc;}
+  if(b.y+r>B){b.y=B-r; b.vy=-b.vy*bc;}
+}
+function tryKick(p){
+  if(!p.kick||p.cd>0) return;
+  const dx=ball.x-p.x, dy=ball.y-p.y, d=Math.hypot(dx,dy);
+  if(d<=p.r+ball.r+4 && d>0){ ball.vx+=dx/d*6.6; ball.vy+=dy/d*6.6; p.cd=12; beep(150,0.09,'triangle',0.35); }
+}
+function physicsStep(){
+  for(const p of players){
+    if(p.ctrl==='bot') botThink(p);
+    else if(p.ctrl!=='remote'){ const v=localInput(p.ctrl); p.ix=v.x; p.iy=v.y; p.kick=v.k; }
+  }
+  for(const p of players) movePlayer(p, p.ctrl==='bot'?DIFF[diff].acc:1);
+  ball.vx*=0.99; ball.vy*=0.99; ball.x+=ball.vx; ball.y+=ball.vy;
+  for(let it=0;it<2;it++){
+    for(let i=0;i<players.length;i++){
+      for(let j=i+1;j<players.length;j++) collide(players[i],players[j],0.5);
+      collide(players[i],ball,0.5);
+      for(const po of POSTS) collide(po,players[i],0.3);
+    }
+    for(const po of POSTS) collide(po,ball,0.5);
+    ballWalls();
+  }
+  if(state==='play'){
+    for(const p of players) tryKick(p);
+    if(ball.x<L-ball.r && ball.y>GT && ball.y<GB) goal('R');
+    else if(ball.x>R+ball.r && ball.y>GT && ball.y<GB) goal('L');
+    else if(!golden){
+      timeLeft-=1/60;
+      if(timeLeft<=0){ timeLeft=0; if(scoreL===scoreR){ golden=true; beep(1800,0.3,'sine',0.06); } else endMatch(); }
+    }
+  } else if(state==='goal'){
+    if(--goalTimer<=0){
+      if(golden || (timeLeft<=0 && scoreL!==scoreR)) endMatch();
+      else { kickoff(); state='play'; beep(2000,0.22,'sine',0.05); }
+    }
+  }
+  updateHUD(scoreL,scoreR,timeLeft,golden);
+}
+function step(){ if(NET.role!=='client' && (state==='play'||state==='goal')) physicsStep(); }
+
+function goalFx(side){
+  const fx=$('goalFx');
+  fx.style.color= side==='L' ? '#ffd9d5' : '#d8e6ff';
+  fx.classList.remove('show'); void fx.offsetWidth; fx.classList.add('show');
+  beep(880,0.15,'square',0.07); beep(1175,0.25,'square',0.07,0.16);
+}
+function goal(side){
+  if(side==='L') scoreL++; else scoreR++;
+  state='goal'; goalTimer=95; goalFx(side);
+}
+function myTeam(){
+  if(mode==='online'){
+    if(NET.role==='host'){ const p=players.find(p=>p.id==='host'); return p&&p.team; }
+    const s=NET.snap&&NET.snap.p.find(p=>p[0]===NET.myId); return s&&s[2];
+  }
+  return mode==='bot'?'red':null;
+}
+function endMatch(){ state='over'; showOver(scoreL,scoreR); }
+function showOver(sL,sR){
+  $('resText').textContent=`${sL} : ${sR}`;
+  const winner = sL>sR?'red':'blue', mine=myTeam();
+  let msg;
+  if(mode==='bot') msg = winner==='red' ? 'Kazandın!' : 'Bot kazandı. Bir daha dene!';
+  else if(mode==='online') msg = !mine ? '' : (mine===winner ? 'Takımın kazandı!' : 'Rakip takım kazandı.');
+  else msg = winner==='red' ? 'Kırmızı kazandı!' : 'Mavi kazandı!';
+  $('resSub').textContent=msg;
+  let gainTxt='';
+  if(mode==='bot' && sL>sR){ const g=REWARD[diff]; save.gold+=g; persist(); refreshWallet(); gainTxt=`+${g} altın (toplam ${save.gold})`; }
+  $('resGold').textContent=gainTxt;
+  $('again').classList.toggle('hide', mode==='online');
+  $('overLobby').classList.toggle('hide', !(mode==='online' && NET.role==='host'));
+  $('overWait').classList.toggle('hide', !(mode==='online' && NET.role==='client'));
+  showScreen('over');
+  beep(1600,0.5,'sine',0.06);
+}
+function updateHUD(sL,sR,tl,g){
+  $('sL').textContent=sL; $('sR').textContent=sR;
+  const t=Math.ceil(tl);
+  $('clock').textContent = g ? 'Altın gol' : `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;
+}
+
+// ---------- Çizim ----------
+const cv=$('c'), ctx=cv.getContext('2d');
+let view={s:1,ox:0,oy:0,dpr:1};
+function resize(){
+  const r=stage.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2.5);
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  portrait = r.height > r.width*1.05;
+  const availH = r.height - ((isTouch && portrait) ? 150 : 0);
+  const ww=portrait?H:W, wh=portrait?W:H;
+  const s=Math.min(r.width/ww, availH/wh)*0.98;
+  view={s,dpr,ox:(r.width-ww*s)/2, oy:(availH-wh*s)/2};
+}
+addEventListener('resize',resize);
+function setWorldTransform(){
+  const {s,dpr,ox,oy}=view;
+  if(portrait) ctx.setTransform(0,-s*dpr,s*dpr,0,ox*dpr,(oy+W*s)*dpr);
+  else ctx.setTransform(s*dpr,0,0,s*dpr,ox*dpr,oy*dpr);
+}
+function circle(x,y,r){ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);}
+function drawField(){
+  ctx.fillStyle='#2b5d32'; ctx.fillRect(0,0,W,H);
+  const bands=10, bw=(R-L)/bands;
+  for(let i=0;i<bands;i++){ ctx.fillStyle= i%2? '#357a3f':'#3c8646'; ctx.fillRect(L+i*bw,T,bw,B-T); }
+  ctx.strokeStyle='rgba(240,247,232,.9)'; ctx.lineWidth=3;
+  ctx.strokeRect(L,T,R-L,B-T);
+  ctx.beginPath(); ctx.moveTo(W/2,T); ctx.lineTo(W/2,B); ctx.stroke();
+  circle(W/2,H/2,62); ctx.stroke();
+  ctx.fillStyle='rgba(240,247,232,.9)'; circle(W/2,H/2,4); ctx.fill();
+  ctx.beginPath(); ctx.arc(L,H/2,95,-Math.PI/2,Math.PI/2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(R,H/2,95,Math.PI/2,Math.PI*1.5); ctx.stroke();
+  for(const [x0,dir,col] of [[L,-1,'rgba(226,72,61,.25)'],[R,1,'rgba(47,111,208,.25)']]){
+    const gx = dir<0 ? x0-GD : x0;
+    ctx.fillStyle=col; ctx.fillRect(gx,GT,GD,GB-GT);
+    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=1;
+    for(let y=GT+10;y<GB;y+=10){ctx.beginPath();ctx.moveTo(gx,y);ctx.lineTo(gx+GD,y);ctx.stroke();}
+    for(let x=gx+8;x<gx+GD;x+=8){ctx.beginPath();ctx.moveTo(x,GT);ctx.lineTo(x,GB);ctx.stroke();}
+    ctx.strokeStyle='rgba(20,20,20,.7)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(x0,GT); ctx.lineTo(x0+dir*GD,GT); ctx.lineTo(x0+dir*GD,GB); ctx.lineTo(x0,GB); ctx.stroke();
+  }
+  for(const p of POSTS){ ctx.fillStyle='#f4f4f0'; circle(p.x,p.y,p.r); ctx.fill(); ctx.strokeStyle='#1b1b1b'; ctx.lineWidth=2; ctx.stroke(); }
+}
+function drawPlayer(p,showName,isMe){
+  if(p.kick){ ctx.strokeStyle='rgba(245,197,24,.55)'; ctx.lineWidth=2; circle(p.x,p.y,PR+BR+4); ctx.stroke(); }
+  ctx.fillStyle='rgba(0,0,0,.22)'; circle(p.x+2,p.y+3,PR); ctx.fill();
+  ctx.save(); ctx.translate(p.x,p.y); if(portrait) ctx.rotate(Math.PI/2);
+  if(p.skin) drawFlag(ctx,p.skin,PR); else { ctx.fillStyle=TEAMC[p.team]; ctx.beginPath(); ctx.arc(0,0,PR,0,Math.PI*2); ctx.fill(); }
+  if(showName){
+    ctx.font='600 12px Rubik, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.strokeText(p.name,0,-PR-6);
+    ctx.fillStyle=isMe?'#fff6c2':'#ffffff'; ctx.fillText(p.name,0,-PR-6);
+  }
+  ctx.restore();
+  circle(p.x,p.y,PR); ctx.lineWidth=p.kick?3.5:2.5; ctx.strokeStyle=p.kick?'#ffffff':'#111'; ctx.stroke();
+  if(p.skin && !p.kick){ circle(p.x,p.y,PR+2.5); ctx.lineWidth=2; ctx.strokeStyle=TEAMC[p.team]; ctx.stroke(); }
+}
+const smooth=new Map(), sball={x:W/2,y:H/2};
+function render(){
+  const {dpr}=view;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#1f4426'; ctx.fillRect(0,0,cv.width,cv.height);
+  setWorldTransform();
+  drawField();
+  let list, bx, by, meId;
+  if(NET.role==='client'){
+    const s=NET.snap; list=[]; meId=NET.myId;
+    if(s){
+      for(const a of s.p){
+        let m=smooth.get(a[0]); if(!m){ m={x:a[4],y:a[5]}; smooth.set(a[0],m); }
+        m.x+=(a[4]-m.x)*0.5; m.y+=(a[5]-m.y)*0.5;
+        list.push({id:a[0],name:a[1],team:a[2],skin:a[3]||null,x:m.x,y:m.y,kick:!!a[6]});
+      }
+      sball.x+=(s.b[0]-sball.x)*0.6; sball.y+=(s.b[1]-sball.y)*0.6;
+    }
+    bx=sball.x; by=sball.y;
+  } else { list=players; bx=ball.x; by=ball.y; meId= NET.role==='host'?'host':null; }
+  const names = mode==='online';
+  for(const p of list) drawPlayer(p,names,p.id===meId);
+  ctx.fillStyle='rgba(0,0,0,.22)'; circle(bx+2,by+3,BR); ctx.fill();
+  ctx.fillStyle='#ffffff'; circle(bx,by,BR); ctx.fill();
+  ctx.lineWidth=2; ctx.strokeStyle='#111'; ctx.stroke();
+}
+let last=performance.now(), acc=0;
+function loop(now){
+  acc+=Math.min(0.1,(now-last)/1000); last=now;
+  while(acc>=1/60){ step(); acc-=1/60; }
+  render(); requestAnimationFrame(loop);
+}
+
+// ---------- Ekranlar ----------
+const SCREENS=['menu','online','lobby','market','pause','over'];
+function showScreen(name){ for(const s of SCREENS) $(s).classList.toggle('hidden', s!==name); }
+$('diff').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  diff=b.dataset.d; $('diff').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+}));
+function setNames(){
+  $('nameL').textContent = mode==='bot'?'Sen':'Kırmızı';
+  $('nameR').textContent = mode==='bot'?'Bot':'Mavi';
+  $('pauseBtn').classList.toggle('hide', mode==='online');
+}
+function resetMatch(){ scoreL=scoreR=0; timeLeft=MATCH_SECONDS; golden=false; botMem.timer=0; kickoff(); updateHUD(0,0,timeLeft,false); }
+function startMatch(m){
+  mode=m; initAudio();
+  if(m==='bot') players=[mkPlayer('me',myName(),'red',save.equipped,'local'), mkPlayer('bot','Bot','blue',null,'bot')];
+  else players=[mkPlayer('p1','Kırmızı','red',save.equipped,'kb1'), mkPlayer('p2','Mavi','blue',null,'kb2')];
+  setNames(); resetMatch(); showScreen(null);
+  if(document.activeElement) document.activeElement.blur();
+  state='play'; beep(2000,0.25,'sine',0.05);
+}
+function togglePause(){
+  if(mode==='online') return;
+  const p=$('pause');
+  if(state==='play'||state==='goal'){ p.dataset.prev=state; state='paused'; showScreen('pause'); }
+  else if(state==='paused'){ state=p.dataset.prev||'play'; showScreen(null); }
+}
+function toMenu(){
+  if(NET.role!=='off') leaveOnline();
+  mode='bot'; state='menu'; players=[]; setNames(); showScreen('menu'); refreshWallet(); updateHUD(0,0,MATCH_SECONDS,false);
+}
+$('playBot').onclick=()=>startMatch('bot');
+$('play2p').onclick=()=>startMatch('2p');
+$('again').onclick=()=>startMatch(mode);
+$('resume').onclick=togglePause;
+$('pauseBtn').onclick=togglePause;
+$('toMenu1').onclick=toMenu;
+$('toMenu2').onclick=toMenu;
+$('openMarket').onclick=()=>{ renderMarket(); showScreen('market'); };
+$('closeMarket').onclick=()=>{ showScreen('menu'); refreshWallet(); };
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && mode!=='online' && (state==='play'||state==='goal')) togglePause(); });
+
+// ---------- Online (PeerJS, oda sahibi fiziği yönetir) ----------
+const NET={role:'off',peer:null,conns:new Map(),conn:null,myId:null,code:'',snap:null,timer:null};
+const onMsg=t=>{$('onMsg').textContent=t||'';};
+const lbMsg=t=>{$('lbMsg').textContent=t||'';};
+const CODECH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const genCode=()=>Array.from({length:5},()=>CODECH[Math.floor(Math.random()*CODECH.length)]).join('');
+const peerId=c=>'mahallekupasi-'+c;
+const r1=v=>Math.round(v*10)/10;
+const clamp1=v=>{ v=Number(v); return Number.isFinite(v)?Math.max(-1,Math.min(1,v)):0; };
+const roomLink=c=>location.origin+location.pathname+'#'+c;
+
+function leaveOnline(){
+  clearInterval(NET.timer); NET.timer=null;
+  try{ NET.peer && NET.peer.destroy(); }catch(e){}
+  NET.role='off'; NET.peer=null; NET.conn=null; NET.conns.clear(); NET.snap=null; smooth.clear();
+  if(mode==='online'){ mode='bot'; setNames(); }
+}
+function peerReady(){ if(typeof Peer==='undefined'){ onMsg('Bağlantı kütüphanesi yüklenemedi. İnternet bağlantını kontrol et.'); return false; } return true; }
+
+function hostRoom(){
+  if(!peerReady()) return;
+  initAudio(); leaveOnline();
+  const code=genCode(); NET.role='host'; NET.code=code; onMsg('Oda kuruluyor...');
+  const peer=new Peer(peerId(code)); NET.peer=peer;
+  peer.on('open',()=>{
+    mode='online'; setNames();
+    players=[mkPlayer('host',myName(),'red',save.equipped,'local')];
+    state='lobby'; resetMatch(); showScreen('lobby'); renderLobby();
+    NET.timer=setInterval(broadcast,33);
+  });
+  peer.on('connection',conn=>{
+    conn.on('open',()=>{
+      if(players.length>=MAXP){ try{conn.send({t:'full'});}catch(e){} setTimeout(()=>conn.close(),400); return; }
+      NET.conns.set(conn.peer,conn);
+    });
+    conn.on('data',d=>hostData(conn,d));
+    conn.on('close',()=>{ NET.conns.delete(conn.peer); players=players.filter(p=>p.id!==conn.peer); renderLobby(); });
+    conn.on('error',()=>{});
+  });
+  peer.on('disconnected',()=>{ try{ if(NET.peer===peer) peer.reconnect(); }catch(e){} });
+  peer.on('error',e=>{
+    if(NET.peer!==peer) return;
+    if(e.type==='unavailable-id'){ hostRoom(); return; }
+    if(state!=='lobby' && state!=='play' && state!=='goal' && state!=='over'){ onMsg('Oda kurulamadı ('+e.type+'). Tekrar dene.'); leaveOnline(); }
+  });
+}
+function hostData(conn,d){
+  if(!d||typeof d!=='object'||!NET.conns.has(conn.peer)) return;
+  let p=players.find(x=>x.id===conn.peer);
+  if(d.t==='h' && !p){
+    const red=players.filter(x=>x.team==='red').length, blue=players.length-red;
+    const team = red<=blue ? 'red':'blue';
+    const skin = SKINS.some(s=>s[0]===d.skin) ? d.skin : null;
+    p=mkPlayer(conn.peer, String(d.name||'Oyuncu').slice(0,12), team, skin, 'remote');
+    const s=spot(team, players.filter(x=>x.team===team).length); p.x=s.x; p.y=s.y;
+    players.push(p); renderLobby();
+  } else if(d.t==='i' && p){ p.ix=clamp1(d.x); p.iy=clamp1(d.y); p.kick=!!d.k; }
+  else if(d.t==='tm' && p && state==='lobby'){ p.team = p.team==='red'?'blue':'red'; renderLobby(); }
+}
+function snapshot(){
+  return {t:'s',st:state,sL:scoreL,sR:scoreR,tl:Math.ceil(timeLeft),g:golden,b:[r1(ball.x),r1(ball.y)],
+    p:players.map(p=>[p.id,p.name,p.team,p.skin||'',r1(p.x),r1(p.y),p.kick?1:0])};
+}
+function broadcast(){
+  if(NET.role!=='host') return;
+  const s=snapshot();
+  for(const c of NET.conns.values()){ if(c.open){ try{ c.send(s); }catch(e){} } }
+}
+function joinRoom(code){
+  code=(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length!==5){ onMsg('Oda kodu 5 karakter olmalı.'); return; }
+  if(!peerReady()) return;
+  initAudio(); leaveOnline();
+  NET.role='client'; NET.code=code; onMsg('Bağlanılıyor...');
+  const peer=new Peer(); NET.peer=peer;
+  peer.on('open',id=>{
+    NET.myId=id;
+    const conn=peer.connect(peerId(code),{serialization:'json'}); NET.conn=conn;
+    const to=setTimeout(()=>{ if(NET.conn===conn && !conn.open){ leaveOnline(); onMsg('Odaya bağlanılamadı. Kodu kontrol et veya tekrar dene.'); } },12000);
+    conn.on('open',()=>{
+      clearTimeout(to); mode='online'; setNames();
+      conn.send({t:'h',name:myName(),skin:save.equipped});
+      NET.timer=setInterval(()=>{ if(conn.open){ const v=localInput('local'); try{ conn.send({t:'i',x:Math.round(v.x*100)/100,y:Math.round(v.y*100)/100,k:v.k?1:0}); }catch(e){} } },33);
+    });
+    conn.on('data',clientData);
+    conn.on('close',()=>{ if(NET.conn===conn){ toMenu(); showScreen('online'); onMsg('Oda kapandı ya da bağlantı koptu.'); } });
+  });
+  peer.on('error',e=>{
+    if(NET.peer!==peer) return;
+    const was=mode==='online';
+    leaveOnline();
+    if(was){ toMenu(); showScreen('online'); }
+    onMsg(e.type==='peer-unavailable' ? 'Böyle bir oda yok ya da kapanmış.' : 'Bağlantı hatası ('+e.type+'). Tekrar dene.');
+  });
+}
+let lastLobbySig='';
+function clientData(d){
+  if(!d||typeof d!=='object') return;
+  if(d.t==='full'){ leaveOnline(); toMenu(); showScreen('online'); onMsg('Oda dolu (en fazla 6 kişi).'); return; }
+  if(d.t!=='s') return;
+  const prev=NET.snap; NET.snap=d;
+  updateHUD(d.sL,d.sR,d.tl,d.g);
+  if(prev && (d.sL>prev.sL||d.sR>prev.sR)) goalFx(d.sL>prev.sL?'L':'R');
+  if(d.st!==state){
+    const old=state; state=d.st;
+    if(d.st==='lobby'){ lastLobbySig=''; showScreen('lobby'); }
+    else if(d.st==='play' && old!=='goal'){ showScreen(null); if(document.activeElement) document.activeElement.blur(); beep(2000,0.25,'sine',0.05); }
+    else if(d.st==='over') showOver(d.sL,d.sR);
+  }
+  if(d.st==='lobby'){ const sig=JSON.stringify(d.p.map(a=>[a[0],a[1],a[2]])); if(sig!==lastLobbySig){ lastLobbySig=sig; renderLobby(); } }
+}
+function lobbyList(){
+  if(NET.role==='host') return players.map(p=>({id:p.id,name:p.name,team:p.team}));
+  return NET.snap ? NET.snap.p.map(a=>({id:a[0],name:a[1],team:a[2]})) : [];
+}
+function renderLobby(){
+  if(NET.role==='off') return;
+  const me = NET.role==='host'?'host':NET.myId;
+  $('lbCode').textContent=NET.code;
+  const link=roomLink(NET.code), local=location.protocol==='file:';
+  $('lbLink').textContent= local ? `Kod: ${NET.code}` : link;
+  $('lbHint').textContent= local ? 'Oyun şu an kendi cihazındaki dosyadan açık. Arkadaşların bu kodu Katıl kısmına yazmalı:' : 'Bu linki arkadaşlarına gönder, tıklayınca odaya gelirler:';
+  $('lbCopy').classList.toggle('hide', local);
+  $('lbShareBtn').classList.toggle('hide', local || !navigator.share);
+  for(const team of ['red','blue']){
+    const ul=$(team==='red'?'lbRed':'lbBlue'); ul.innerHTML='';
+    for(const p of lobbyList().filter(p=>p.team===team)){
+      const li=document.createElement('li'); li.textContent=p.name+(p.id==='host'?' (oda sahibi)':'');
+      if(p.id===me) li.className='me'; ul.appendChild(li);
+    }
+  }
+  $('lbStart').classList.toggle('hide', NET.role!=='host');
+  $('lbWait').classList.toggle('hide', NET.role==='host');
+}
+$('openOnline').onclick=()=>{ onMsg(''); $('onName').value=nameIn.value; showScreen('online'); };
+$('onName').addEventListener('input',()=>{ nameIn.value=$('onName').value; });
+$('onBack').onclick=()=>{ leaveOnline(); showScreen('menu'); };
+$('onHost').onclick=()=>{ try{localStorage.setItem('mk_name',nameIn.value.trim());}catch(e){} hostRoom(); };
+$('onJoin').onclick=()=>{ try{localStorage.setItem('mk_name',nameIn.value.trim());}catch(e){} joinRoom($('onCode').value); };
+$('lbCopy').onclick=()=>{
+  const link=roomLink(NET.code);
+  if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>lbMsg('Link kopyalandı.'),()=>lbMsg('Kopyalanamadı, linki elle seç.'));
+  else lbMsg('Kopyalanamadı, linki elle seç.');
+};
+$('lbShareBtn').onclick=()=>{ try{ navigator.share({title:'Mahalle Kupası',text:'Gel maç yapalım!',url:roomLink(NET.code)}).catch(()=>{}); }catch(e){} };
+$('lbSwitch').onclick=()=>{
+  if(NET.role==='host'){ const p=players.find(p=>p.id==='host'); if(p){ p.team=p.team==='red'?'blue':'red'; renderLobby(); } }
+  else if(NET.conn&&NET.conn.open){ try{NET.conn.send({t:'tm'});}catch(e){} }
+};
+$('lbStart').onclick=()=>{
+  const red=players.filter(p=>p.team==='red').length, blue=players.length-red;
+  if(!red||!blue){ lbMsg('İki takımda da en az bir oyuncu olmalı.'); return; }
+  lbMsg(''); resetMatch(); showScreen(null); if(document.activeElement) document.activeElement.blur();
+  state='play'; beep(2000,0.25,'sine',0.05);
+};
+$('overLobby').onclick=()=>{ state='lobby'; resetMatch(); showScreen('lobby'); renderLobby(); };
+$('lbLeave').onclick=toMenu;
+
+// Linkle gelindiyse doğrudan katılma ekranı
+const hm=location.hash.replace('#','').toUpperCase();
+if(/^[A-Z0-9]{5}$/.test(hm)){ $('onCode').value=hm; $('onName').value=nameIn.value; showScreen('online'); onMsg('Arkadaşının odasına girmek için adını yazıp Katıl\'a bas.'); }
+
+kickoff(); resize(); updateHUD(0,0,MATCH_SECONDS,false); refreshWallet(); setNames(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
