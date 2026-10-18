@@ -161,6 +161,14 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
 .emo kbd{font-size:.7rem;margin-right:4px}
 .nottouch .emo{grid-template-columns:repeat(3,auto)}
 .touch .emo kbd{display:none}
+.rotate{position:absolute;inset:0;z-index:7;background:rgba(10,20,12,.92);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
+.rotate.hidden{display:none}
+.rotate b{font-size:1.3rem}
+.rotate p{color:rgba(255,255,255,.75);max-width:280px;margin:4px 0 8px;font-size:.92rem;line-height:1.4}
+.rotate .btn{width:auto;color:#fff;border-color:rgba(255,255,255,.7);padding:10px 18px}
+.rot-ico{font-size:3rem;animation:rot 1.8s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media (prefers-reduced-motion: reduce){.rot-ico{animation:none}}
 </style>
 </head>
 <body>
@@ -179,6 +187,12 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
   <div id="moveHint">Sol tarafa dokunup sürükle</div>
   <div id="goalFx">GOL!</div>
   <div class="emo hidden" id="emoPanel"></div>
+  <div class="rotate hidden" id="rotateHint">
+    <div class="rot-ico">📱</div>
+    <b>Telefonunu yan çevir</b>
+    <p>Saha yatay oynanıyor. Ekran dönmüyorsa telefonun ekran döndürme kilidini kapat.</p>
+    <button class="btn alt" id="rotateSkip">Dikey devam et</button>
+  </div>
 
   <div class="overlay" id="menu">
     <div class="card">
@@ -259,7 +273,7 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
 
   <div class="overlay hidden" id="pause">
     <div class="card">
-      <h2 class="logo" style="font-size:1.6rem">Mola</h2>
+      <h2 class="logo" style="font-size:1.6rem" id="pauseTitle">Mola</h2>
       <button class="btn" id="resume">Devam et</button>
       <button class="btn alt" id="toMenu1">Menüye dön</button>
     </div>
@@ -449,6 +463,7 @@ stage.addEventListener('pointerdown',e=>{
   const r=stage.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
   if(x<r.width*0.55 && touch.joyId===null){
     touch.joyId=e.pointerId; touch.ox=x; touch.oy=y; touch.vx=touch.vy=0;
+    $('moveHint').style.visibility='hidden';
     joy.style.left=x+'px'; joy.style.top=y+'px'; joy.style.display='block'; knob.style.transform='translate(0,0)';
   } else { touch.kickIds.add(e.pointerId); kickHint.classList.add('on'); }
   try{stage.setPointerCapture(e.pointerId);}catch(_){}
@@ -639,8 +654,9 @@ function resize(){
   const r=stage.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2.5);
   cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
   // Sahayı sadece dokunmatik cihazlarda dik çevir; bilgisayarda her zaman yatay
-  portrait = isTouch && r.height > r.width*1.05;
-  const availH = r.height - ((isTouch && portrait) ? 150 : 0);
+  portrait = false;
+  const availH = r.height;
+  updateRotateHint();
   const ww=portrait?H:W, wh=portrait?W:H;
   const s=Math.min(r.width/ww, availH/wh)*0.98;
   view={s,dpr,ox:(r.width-ww*s)/2, oy:(availH-wh*s)/2};
@@ -737,19 +753,20 @@ let last=performance.now(), acc=0;
 function loop(now){
   acc+=Math.min(0.1,(now-last)/1000); last=now;
   while(acc>=1/60){ step(); acc-=1/60; }
-  render(); requestAnimationFrame(loop);
+  render(); updateRotateHint(); requestAnimationFrame(loop);
 }
 
 // ---------- Ekranlar ----------
 const SCREENS=['menu','online','lobby','market','pause','over'];
-function showScreen(name){ for(const s of SCREENS) $(s).classList.toggle('hidden', s!==name); }
+function showScreen(name){ for(const s of SCREENS) $(s).classList.toggle('hidden', s!==name); updateRotateHint(); }
 $('diff').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   diff=b.dataset.d; $('diff').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
 }));
 function setNames(){
   $('nameL').textContent = mode==='bot'?'Sen':'Kırmızı';
   $('nameR').textContent = mode==='bot'?'Bot':'Mavi';
-  $('pauseBtn').classList.toggle('hide', mode==='online');
+  $('pauseBtn').textContent = mode==='online' ? '✕' : '❚❚';
+  $('pauseBtn').setAttribute('aria-label', mode==='online' ? 'Menü' : 'Duraklat');
   $('emoBtn').classList.toggle('hide', mode==='2p');
 }
 function resetMatch(){ const c=matchCfg(); if(curField!==c.f) setField(c.f); scoreL=scoreR=0; timeLeft=c.t; golden=false; botMem.timer=0; kickoff(); updateHUD(0,0,timeLeft,false); }
@@ -761,8 +778,24 @@ function startMatch(m){
   if(document.activeElement) document.activeElement.blur();
   state='play'; beep(2000,0.25,'sine',0.05);
 }
+let rotateSkipped=false;
+function updateRotateHint(){
+  const el=document.getElementById('rotateHint'); if(!el) return;
+  const tall = isTouch && innerHeight > innerWidth*1.05;
+  el.classList.toggle('hidden', !(tall && !rotateSkipped && (state==='play'||state==='goal')));
+}
 function togglePause(){
-  if(mode==='online') return;
+  if(mode==='online'){
+    const pe=$('pause');
+    if(!pe.classList.contains('hidden')){ pe.classList.add('hidden'); return; }
+    if(state==='play'||state==='goal'||state==='lobby'){
+      $('pauseTitle').textContent='Menü'; $('resume').textContent= state==='lobby'?'Lobiye dön':'Oyuna dön'; $('toMenu1').textContent='Odadan çık';
+      if(state==='lobby') $('lobby').classList.add('hidden');
+      pe.classList.remove('hidden');
+    }
+    return;
+  }
+  $('pauseTitle').textContent='Mola'; $('resume').textContent='Devam et'; $('toMenu1').textContent='Menüye dön';
   const p=$('pause');
   if(state==='play'||state==='goal'){ p.dataset.prev=state; state='paused'; showScreen('pause'); }
   else if(state==='paused'){ state=p.dataset.prev||'play'; showScreen(null); }
@@ -774,7 +807,8 @@ function toMenu(){
 $('playBot').onclick=()=>startMatch('bot');
 $('play2p').onclick=()=>startMatch('2p');
 $('again').onclick=()=>startMatch(mode);
-$('resume').onclick=togglePause;
+$('resume').onclick=()=>{ if(mode==='online'){ $('pause').classList.add('hidden'); if(state==='lobby') $('lobby').classList.remove('hidden'); } else togglePause(); };
+$('rotateSkip').onclick=()=>{ rotateSkipped=true; updateRotateHint(); };
 $('pauseBtn').onclick=togglePause;
 $('toMenu1').onclick=toMenu;
 $('toMenu2').onclick=toMenu;
@@ -890,8 +924,16 @@ function snapshot(){
     f:curField, cfg:cfg,
     p:players.map(p=>[p.id,p.name,p.team,p.skin||'',r1(p.x),r1(p.y),p.kick?1:0,activeEmo(p)])};
 }
+function checkTeams(){
+  if(NET.role!=='host' || !(state==='play'||state==='goal')) return;
+  const red=players.some(p=>p.team==='red'), blue=players.some(p=>p.team==='blue');
+  if(red&&blue) return;
+  state='lobby'; resetMatch(); showScreen('lobby'); renderLobby();
+  lbMsg('Bir oyuncu oyundan düştü, maç durduruldu.');
+}
 function broadcast(){
   if(NET.role!=='host') return;
+  checkTeams();
   const now=performance.now();
   for(const p of players.slice()){
     if(p.ctrl==='remote' && p.lastRx && now-p.lastRx>10000){ players=players.filter(x=>x!==p); renderLobby(); }
@@ -953,7 +995,8 @@ function clientData(d,fail){
   if(d.st!==state || !prev){
     const old=state; state=d.st;
     if(d.st==='lobby'){ lastLobbySig=''; showScreen('lobby'); }
-    else if((d.st==='play'||d.st==='goal') && old!=='goal' && old!=='play'){ showScreen(null); if(document.activeElement) document.activeElement.blur(); beep(2000,0.25,'sine',0.05); }
+    if(d.st==='lobby' && (old==='play'||old==='goal')) lbMsg('Bir oyuncu oyundan düştü, maç durduruldu.');
+    else if((d.st==='play'||d.st==='goal') && old!=='goal' && old!=='play'){ lbMsg(''); showScreen(null); if(document.activeElement) document.activeElement.blur(); beep(2000,0.25,'sine',0.05); }
     else if(d.st==='over' && old!=='over') showOver(d.sL,d.sR);
   }
   if(d.st==='lobby'){ const sig=JSON.stringify(d.p.map(a=>[a[0],a[1],a[2]])); if(sig!==lastLobbySig){ lastLobbySig=sig; renderLobby(); } }
