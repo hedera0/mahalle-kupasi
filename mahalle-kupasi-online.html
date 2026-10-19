@@ -161,6 +161,19 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
 .emo kbd{font-size:.7rem;margin-right:4px}
 .nottouch .emo{grid-template-columns:repeat(3,auto)}
 .touch .emo kbd{display:none}
+.seg.two{grid-template-columns:repeat(2,1fr)}
+#rooms .card{max-height:100%;display:flex;flex-direction:column}
+.rm-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;flex:1;margin-top:4px}
+.rm-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.rm-item.full{opacity:.55}
+.rm-main{flex:1;min-width:0}
+.rm-main b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rm-main small{color:var(--muted);font-size:.8rem}
+.badge{font-size:.72rem;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.badge.lobby{background:#2e9d4f;color:#fff}
+.badge.play{background:#f5c518;color:#1b1b1b}
+.rm-item .mk-btn{width:auto;padding:8px 14px}
+.rm-live{font-size:.8rem;font-weight:700;color:var(--muted)}
 .rotate{position:absolute;inset:0;z-index:7;background:rgba(10,20,12,.92);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
 .rotate.hidden{display:none}
 .rotate b{font-size:1.3rem}
@@ -200,7 +213,8 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
       <div class="wallet"><canvas id="skinPrev" width="80" height="80"></canvas><div><b id="goldTxt">0 altın</b><small id="skinTxt">Skin yok</small></div></div>
       <div class="label">Adın</div>
       <input class="inp" id="nameIn" maxlength="12" placeholder="Oyuncu" autocomplete="off">
-      <button class="btn" id="openOnline">Arkadaşlarla online oyna</button>
+      <button class="btn" id="openRooms">Açık odalar</button>
+      <button class="btn alt" id="openOnline">Arkadaşlarla online oyna</button>
       <div class="label">Bot zorluğu</div>
       <div class="seg" id="diff">
         <button data-d="easy" aria-pressed="false">Kolay</button>
@@ -232,6 +246,16 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
     </div>
   </div>
 
+  <div class="overlay hidden" id="rooms">
+    <div class="card" style="width:min(440px,100%)">
+      <div class="mk-head"><h2 class="logo" style="font-size:1.6rem;margin:0">Açık odalar</h2><span class="rm-live" id="rmLive"></span></div>
+      <p class="mk-msg" id="rmMsg">Odalar aranıyor...</p>
+      <div class="rm-list" id="rmList"></div>
+      <button class="btn" id="rmHost">Herkese açık oda kur</button>
+      <button class="btn alt" id="rmBack">Geri</button>
+    </div>
+  </div>
+
   <div class="overlay hidden" id="lobby">
     <div class="card">
       <h2 class="logo" style="font-size:1.5rem;margin-bottom:4px">Oda <span class="code" id="lbCode"></span></h2>
@@ -239,6 +263,10 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
         <p id="lbHint">Bu linki arkadaşlarına gönder, tıklayınca odaya gelirler:</p>
         <div class="linkbox" id="lbLink"></div>
         <div class="row" style="margin-top:8px"><button class="btn small" id="lbCopy" style="flex:1">Linki kopyala</button><button class="btn small alt" id="lbShareBtn" style="flex:1">Paylaş</button></div>
+      </div>
+      <div id="lbPubWrap">
+        <div class="label">Oda görünürlüğü</div>
+        <div class="seg two" id="lbPub"><button data-v="1">Herkese açık</button><button data-v="0">Sadece link</button></div>
       </div>
       <div id="lbCfg">
         <div class="label">Maç süresi</div>
@@ -757,7 +785,7 @@ function loop(now){
 }
 
 // ---------- Ekranlar ----------
-const SCREENS=['menu','online','lobby','market','pause','over'];
+const SCREENS=['menu','online','lobby','market','pause','over','rooms'];
 function showScreen(name){ for(const s of SCREENS) $(s).classList.toggle('hidden', s!==name); updateRotateHint(); }
 $('diff').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   diff=b.dataset.d; $('diff').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
@@ -871,9 +899,11 @@ function openRoom(code,c,onJoinError){
   NET.send=(data,target)=>{ try{ const r=target ? act.send(data,{target}) : act.send(data); if(r&&r.catch) r.catch(()=>{}); }catch(e){} };
   return {room,act};
 }
-function leaveOnline(){
+function leaveOnline(keepPub){
   clearInterval(NET.timer); clearTimeout(NET.joinTimer); clearInterval(NET.netTimer);
   NET.timer=NET.joinTimer=NET.netTimer=null;
+  if(!keepPub && (PUB.mode==='host'||PUB.mode==='idle')) pubLeave();
+  else if(keepPub && PUB.mode==='host') pubStopAnnounce();
   try{ NET.room && NET.room.leave(); }catch(e){}
   NET.role='off'; NET.room=null; NET.send=null; NET.hostId=null; NET.snap=null; NET.lastRx=0; smooth.clear();
   if(mode==='online'){ mode='bot'; setNames(); }
@@ -882,7 +912,7 @@ const failLib='Bağlantı kütüphanesi yüklenemedi. İnternetini kontrol edip 
 
 async function hostRoom(){
   if(NET.busy) return;
-  NET.busy=true; initAudio(); leaveOnline(); onMsg('Oda kuruluyor...');
+  NET.busy=true; initAudio(); leaveOnline(true); onMsg('Oda kuruluyor...');
   const ok=await libReady(); if(!ok){ NET.busy=false; onMsg(failLib); return; }
   const c=await roomConfig(); NET.busy=false;
   const code=genCode(); NET.role='host'; NET.code=code;
@@ -894,6 +924,7 @@ async function hostRoom(){
   players=[mkPlayer('host',myName(),'red',save.equipped,'local')];
   state='lobby'; resetMatch(); onMsg(''); showScreen('lobby'); renderLobby();
   NET.timer=setInterval(broadcast,33);
+  if(pubRoom) pubHostStart();
   const t0=performance.now();
   NET.netTimer=setInterval(()=>{
     const n=relayCount(), el=$('lbNet');
@@ -1046,6 +1077,8 @@ function renderLobby(){
   if(NET.role==='off') return;
   const me = NET.role==='host'?'host':NET.myId;
   $('lbCode').textContent=NET.code; renderCfg();
+  $('lbPubWrap').classList.toggle('hide', NET.role!=='host');
+  $('lbPub').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', (b.dataset.v==='1')===pubRoom ? 'true':'false'));
   const link=roomLink(NET.code), local=location.protocol==='file:';
   $('lbLink').textContent= local ? `Kod: ${NET.code}` : link;
   $('lbHint').textContent= local ? 'Oyun şu an kendi cihazındaki dosyadan açık. Arkadaşların bu kodu Katıl kısmına yazmalı:' : 'Bu linki arkadaşlarına gönder, tıklayınca odaya gelirler:';
@@ -1114,13 +1147,121 @@ function sendEmote(i){
   const me=players.find(p=>p.ctrl==='local'||p.ctrl==='kb1'); if(me) setEmote(me,i);
 }
 
+// ---------- Açık odalar listesi ----------
+// Herkese açık odalar ortak bir "bekleme salonuna" birkaç saniyede bir kendini duyurur.
+const LOBBY_ID='acik-odalar-v1';
+const PUB={room:null,send:null,timer:null,mode:null,list:new Map(),ui:null,t0:0};
+let pubRoom=true;
+const SAHA={s:'Küçük saha',m:'Orta saha',l:'Büyük saha'};
+function adMsg(){ return {t:'ad',code:NET.code,host:myName(),n:players.length,max:MAXP,st:state,cfg:{t:cfg.t,g:cfg.g,f:cfg.f}}; }
+async function pubJoin(asMode){
+  if(PUB.room){ PUB.mode=asMode; return true; }
+  if(!await libReady()) return false;
+  const c=await roomConfig();
+  if(PUB.room){ PUB.mode=asMode; return true; }
+  const room=window.Trystero.joinRoom(c,LOBBY_ID);
+  const act=room.makeAction('ad');
+  PUB.room=room; PUB.mode=asMode;
+  PUB.send=(d,target)=>{ try{ const r=target?act.send(d,{target}):act.send(d); if(r&&r.catch) r.catch(()=>{}); }catch(e){} };
+  act.onMessage=d=>{
+    if(PUB.mode!=='browse'||!d||typeof d!=='object') return;
+    const code=String(d.code||'');
+    if(!/^[A-Z0-9]{5}$/.test(code)) return;
+    if(d.t==='gone'){ PUB.list.delete(code); renderRooms(); return; }
+    if(d.t!=='ad') return;
+    const cf=d.cfg||{};
+    PUB.list.set(code,{code, host:String(d.host||'Oyuncu').slice(0,12), n:Math.max(0,Math.min(MAXP,d.n|0)), max:MAXP,
+      st: d.st==='lobby'?'lobby':'play',
+      cfg:{t:[180,300,600].includes(cf.t)?cf.t:180, g:[0,3,5].includes(cf.g)?cf.g:0, f:SAHA[cf.f]?cf.f:'s'}, seen:performance.now()});
+    renderRooms();
+  };
+  room.onPeerJoin=id=>{ if(PUB.mode==='host' && NET.role==='host') PUB.send(adMsg(),id); };
+  return true;
+}
+function pubLeave(){
+  clearInterval(PUB.timer); PUB.timer=null;
+  if(PUB.room){
+    if(PUB.mode==='host' && NET.code && PUB.send) PUB.send({t:'gone',code:NET.code});
+    try{ PUB.room.leave(); }catch(e){}
+  }
+  PUB.room=null; PUB.send=null; PUB.mode=null; PUB.list.clear();
+}
+async function pubHostStart(){
+  if(NET.role!=='host'||!pubRoom) return;
+  const ok=await pubJoin('host'); if(!ok||NET.role!=='host'||!pubRoom) return;
+  clearInterval(PUB.timer);
+  let lastSig='', lastAt=0;
+  const tick=()=>{
+    if(NET.role!=='host'||!pubRoom||!PUB.send) return;
+    const m=adMsg(), sig=JSON.stringify(m), now=performance.now();
+    if(sig!==lastSig || now-lastAt>2500){ PUB.send(m); lastSig=sig; lastAt=now; }
+  };
+  tick(); PUB.timer=setInterval(tick,400);
+}
+function pubStopAnnounce(){
+  clearInterval(PUB.timer); PUB.timer=null;
+  if(PUB.mode==='host' && NET.code && PUB.send) PUB.send({t:'gone',code:NET.code});
+  if(PUB.room) PUB.mode='idle';
+}
+function renderRooms(){
+  const box=$('rmList'); if(!box) return;
+  const now=performance.now();
+  for(const [k,v] of PUB.list) if(now-v.seen>9000) PUB.list.delete(k);
+  const items=[...PUB.list.values()].sort((a,b)=>((a.st==='lobby'?0:1)-(b.st==='lobby'?0:1)) || (b.n-a.n));
+  box.innerHTML='';
+  for(const r of items){
+    const full=r.n>=r.max;
+    const row=document.createElement('div'); row.className='rm-item'+(full?' full':''); row.dataset.code=r.code;
+    const main=document.createElement('div'); main.className='rm-main';
+    const b=document.createElement('b'); b.textContent=r.host;
+    const sm=document.createElement('small');
+    sm.textContent=`${r.n}/${r.max} oyuncu · ${r.cfg.t/60} dk · ${SAHA[r.cfg.f]}${r.cfg.g?` · ${r.cfg.g} gol`:''}`;
+    main.append(b,sm);
+    const badge=document.createElement('span'); badge.className='badge '+(r.st==='lobby'?'lobby':'play'); badge.textContent=r.st==='lobby'?'Lobide':'Maçta';
+    const btn=document.createElement('button'); btn.className='mk-btn'; btn.textContent=full?'Dolu':'Katıl'; btn.disabled=full;
+    btn.onclick=()=>joinFromList(r.code);
+    row.append(main,badge,btn); box.appendChild(row);
+  }
+  const secs=(now-PUB.t0)/1000, relays=window.Trystero?relayCount():0;
+  $('rmLive').textContent = items.length ? `${items.length} oda` : '';
+  let msg='';
+  if(!items.length){
+    if(window.Trystero && relays===0 && secs>10) msg='Sunuculara ulaşılamıyor. İnternetini kontrol et.';
+    else if(secs<6) msg='Odalar aranıyor...';
+    else msg='Şu an açık oda yok. Bir oda kur, başkaları da listede görsün!';
+  }
+  $('rmMsg').textContent=msg;
+}
+async function openRooms(){
+  initAudio(); PUB.list.clear(); PUB.t0=performance.now();
+  showScreen('rooms'); renderRooms();
+  clearInterval(PUB.ui); PUB.ui=setInterval(()=>{ if(PUB.mode==='browse') renderRooms(); },1000);
+  const ok=await pubJoin('browse');
+  if(!ok) $('rmMsg').textContent='Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.';
+}
+function closeRooms(){ clearInterval(PUB.ui); PUB.ui=null; if(PUB.mode==='browse') pubLeave(); }
+function joinFromList(code){
+  closeRooms();
+  $('onCode').value=code; $('onName').value=nameIn.value; showScreen('online');
+  joinRoom(code);
+}
+$('openRooms').onclick=openRooms;
+$('rmBack').onclick=()=>{ closeRooms(); showScreen('menu'); };
+$('rmHost').onclick=()=>{ clearInterval(PUB.ui); PUB.ui=null; if(PUB.room) PUB.mode='idle'; PUB.list.clear(); pubRoom=true; $('onName').value=nameIn.value; showScreen('online'); hostRoom(); };
+$('lbPub').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  if(NET.role!=='host') return;
+  pubRoom = b.dataset.v==='1';
+  if(pubRoom) pubHostStart(); else pubStopAnnounce();
+  renderLobby();
+}));
+
 // Linkle gelindiyse doğrudan katılma ekranı
 const hm=location.hash.replace('#','').toUpperCase();
 if(/^[A-Z0-9]{5}$/.test(hm)){ $('onCode').value=hm; $('onName').value=nameIn.value; showScreen('online'); onMsg('Arkadaşının odasına girmek için adını yazıp Katıl\'a bas.'); }
 
 // Test için küçük bir iç bakış penceresi (oyunu etkilemez)
 fieldReady=true;
-window.__mk={ball, get cfg(){return cfg;}, get field(){return [W,H,curField];}, get players(){return players;}, get state(){return state;}, get net(){return NET;}, get score(){return [scoreL,scoreR];}, endSoon(){ timeLeft=0.05; }};
+window.__mk={ball, get pub(){return PUB;}, get cfg(){return cfg;}, get field(){return [W,H,curField];}, get players(){return players;}, get state(){return state;}, get net(){return NET;}, get score(){return [scoreL,scoreR];}, endSoon(){ timeLeft=0.05; }};
 kickoff(); resize(); updateHUD(0,0,MATCH_SECONDS,false); refreshWallet(); setNames(); requestAnimationFrame(loop);
 })();
 </script>
