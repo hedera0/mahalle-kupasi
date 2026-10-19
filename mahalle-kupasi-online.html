@@ -162,17 +162,36 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
 .nottouch .emo{grid-template-columns:repeat(3,auto)}
 .touch .emo kbd{display:none}
 .seg.two{grid-template-columns:repeat(2,1fr)}
-#rooms .card{max-height:100%;display:flex;flex-direction:column}
-.rm-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;flex:1;margin-top:4px}
-.rm-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-.rm-item.full{opacity:.55}
-.rm-main{flex:1;min-width:0}
-.rm-main b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rm-main small{color:var(--muted);font-size:.8rem}
+.rooms-card{width:min(760px,100%)!important;max-height:100%;display:flex;flex-direction:column;padding:16px!important}
+.rm-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rm-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.rm-actions .inp{flex:1;min-width:110px;padding:8px 10px;font-size:.95rem}
+.rm-actions .btn{width:auto;margin:0;padding:9px 14px}
+.rm-table{border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0;flex:1}
+.rm-head,.rm-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 72px 150px;gap:8px;align-items:center;padding:9px 12px}
+.rm-head{background:var(--ink);color:var(--panel);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.rm-list{overflow-y:auto;min-height:150px;max-height:52vh}
+.rm-row{border-top:1px solid var(--line);cursor:pointer;font-size:.92rem}
+.rm-row:first-child{border-top:0}
+.rm-row:nth-child(even){background:rgba(127,127,127,.06)}
+.rm-row:hover{background:rgba(226,72,61,.10)}
+.rm-row:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.rm-row.full{opacity:.5;cursor:not-allowed}
+.rm-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.rm-row small{display:block;color:var(--muted);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rm-n{font-weight:800;font-variant-numeric:tabular-nums}
+.rm-c4{color:var(--muted);font-size:.8rem}
+.rm-head .rm-c4{color:inherit;font-size:inherit}
 .badge{font-size:.72rem;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap}
 .badge.lobby{background:#2e9d4f;color:#fff}
 .badge.play{background:#f5c518;color:#1b1b1b}
-.rm-item .mk-btn{width:auto;padding:8px 14px}
+.rm-empty{padding:28px 12px;text-align:center;color:var(--muted);font-weight:600}
+.rm-skel{height:14px;border-radius:7px;background:linear-gradient(90deg,rgba(127,127,127,.12),rgba(127,127,127,.25),rgba(127,127,127,.12));background-size:200% 100%;animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.rm-skel{animation:none}}
+.rm-hint{text-align:center;font-size:.8rem!important;margin:8px 0 0!important}
+.rm-live i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2e9d4f;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 3px rgba(46,157,79,.2)}
+@media (max-width:560px){ .rm-head,.rm-row{grid-template-columns:minmax(0,1fr) 52px 64px} .rm-c4{display:none} }
 .rm-live{font-size:.8rem;font-weight:700;color:var(--muted)}
 .rotate{position:absolute;inset:0;z-index:7;background:rgba(10,20,12,.92);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
 .rotate.hidden{display:none}
@@ -247,12 +266,22 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
   </div>
 
   <div class="overlay hidden" id="rooms">
-    <div class="card" style="width:min(440px,100%)">
-      <div class="mk-head"><h2 class="logo" style="font-size:1.6rem;margin:0">Açık odalar</h2><span class="rm-live" id="rmLive"></span></div>
-      <p class="mk-msg" id="rmMsg">Odalar aranıyor...</p>
-      <div class="rm-list" id="rmList"></div>
-      <button class="btn" id="rmHost">Herkese açık oda kur</button>
-      <button class="btn alt" id="rmBack">Geri</button>
+    <div class="card rooms-card">
+      <div class="rm-top">
+        <h2 class="logo" style="font-size:1.6rem;margin:0">Odalar</h2>
+        <span class="rm-live" id="rmLive"><i></i>0 oda</span>
+      </div>
+      <div class="rm-actions">
+        <input class="inp" id="rmName" maxlength="12" placeholder="Adın" autocomplete="off">
+        <button class="btn small" id="rmHost">+ Oda kur</button>
+        <button class="btn small alt" id="rmRefresh">↻ Yenile</button>
+        <button class="btn small alt" id="rmBack">Geri</button>
+      </div>
+      <div class="rm-table">
+        <div class="rm-head"><span>Oda adı</span><span>Oyuncu</span><span>Durum</span><span class="rm-c4">Ayarlar</span></div>
+        <div class="rm-list" id="rmList"></div>
+      </div>
+      <p class="rm-hint">Girmek için bir odaya dokun.</p>
     </div>
   </div>
 
@@ -265,6 +294,8 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
         <div class="row" style="margin-top:8px"><button class="btn small" id="lbCopy" style="flex:1">Linki kopyala</button><button class="btn small alt" id="lbShareBtn" style="flex:1">Paylaş</button></div>
       </div>
       <div id="lbPubWrap">
+        <div class="label">Oda adı</div>
+        <input class="inp" id="lbRoomName" maxlength="24" autocomplete="off">
         <div class="label">Oda görünürlüğü</div>
         <div class="seg two" id="lbPub"><button data-v="1">Herkese açık</button><button data-v="0">Sadece link</button></div>
       </div>
@@ -902,8 +933,7 @@ function openRoom(code,c,onJoinError){
 function leaveOnline(keepPub){
   clearInterval(NET.timer); clearTimeout(NET.joinTimer); clearInterval(NET.netTimer);
   NET.timer=NET.joinTimer=NET.netTimer=null;
-  if(!keepPub && (PUB.mode==='host'||PUB.mode==='idle')) pubLeave();
-  else if(keepPub && PUB.mode==='host') pubStopAnnounce();
+  pubStopAnnounce();
   try{ NET.room && NET.room.leave(); }catch(e){}
   NET.role='off'; NET.room=null; NET.send=null; NET.hostId=null; NET.snap=null; NET.lastRx=0; smooth.clear();
   if(mode==='online'){ mode='bot'; setNames(); }
@@ -924,6 +954,7 @@ async function hostRoom(){
   players=[mkPlayer('host',myName(),'red',save.equipped,'local')];
   state='lobby'; resetMatch(); onMsg(''); showScreen('lobby'); renderLobby();
   NET.timer=setInterval(broadcast,33);
+  roomName=defaultRoomName(); $('lbRoomName').value=roomName;
   if(pubRoom) pubHostStart();
   const t0=performance.now();
   NET.netTimer=setInterval(()=>{
@@ -1147,52 +1178,52 @@ function sendEmote(i){
   const me=players.find(p=>p.ctrl==='local'||p.ctrl==='kb1'); if(me) setEmote(me,i);
 }
 
-// ---------- Açık odalar listesi ----------
-// Herkese açık odalar ortak bir "bekleme salonuna" birkaç saniyede bir kendini duyurur.
+// ---------- Açık odalar listesi (Haxball tarzı) ----------
+// Sayfa açılınca ortak "oda listesi" kanalına bağlanılır; herkese açık odalar burada kendini duyurur.
 const LOBBY_ID='acik-odalar-v1';
-const PUB={room:null,send:null,timer:null,mode:null,list:new Map(),ui:null,t0:0};
-let pubRoom=true;
-const SAHA={s:'Küçük saha',m:'Orta saha',l:'Büyük saha'};
-function adMsg(){ return {t:'ad',code:NET.code,host:myName(),n:players.length,max:MAXP,st:state,cfg:{t:cfg.t,g:cfg.g,f:cfg.f}}; }
-async function pubJoin(asMode){
-  if(PUB.room){ PUB.mode=asMode; return true; }
-  if(!await libReady()) return false;
-  const c=await roomConfig();
-  if(PUB.room){ PUB.mode=asMode; return true; }
-  const room=window.Trystero.joinRoom(c,LOBBY_ID);
-  const act=room.makeAction('ad');
-  PUB.room=room; PUB.mode=asMode;
-  PUB.send=(d,target)=>{ try{ const r=target?act.send(d,{target}):act.send(d); if(r&&r.catch) r.catch(()=>{}); }catch(e){} };
-  act.onMessage=d=>{
-    if(PUB.mode!=='browse'||!d||typeof d!=='object') return;
-    const code=String(d.code||'');
-    if(!/^[A-Z0-9]{5}$/.test(code)) return;
-    if(d.t==='gone'){ PUB.list.delete(code); renderRooms(); return; }
-    if(d.t!=='ad') return;
-    const cf=d.cfg||{};
-    PUB.list.set(code,{code, host:String(d.host||'Oyuncu').slice(0,12), n:Math.max(0,Math.min(MAXP,d.n|0)), max:MAXP,
-      st: d.st==='lobby'?'lobby':'play',
-      cfg:{t:[180,300,600].includes(cf.t)?cf.t:180, g:[0,3,5].includes(cf.g)?cf.g:0, f:SAHA[cf.f]?cf.f:'s'}, seen:performance.now()});
-    renderRooms();
-  };
-  room.onPeerJoin=id=>{ if(PUB.mode==='host' && NET.role==='host') PUB.send(adMsg(),id); };
-  return true;
-}
-function pubLeave(){
-  clearInterval(PUB.timer); PUB.timer=null;
-  if(PUB.room){
-    if(PUB.mode==='host' && NET.code && PUB.send) PUB.send({t:'gone',code:NET.code});
-    try{ PUB.room.leave(); }catch(e){}
-  }
-  PUB.room=null; PUB.send=null; PUB.mode=null; PUB.list.clear();
+const PUB={room:null,send:null,timer:null,announcing:false,list:new Map(),ui:null,t0:performance.now(),joining:null};
+let pubRoom=true, roomName='';
+const SAHA={s:'Küçük',m:'Orta',l:'Büyük'};
+const defaultRoomName=()=>`${myName()} odası`;
+function adMsg(){ return {t:'ad',code:NET.code,name:(roomName||defaultRoomName()).slice(0,24),host:myName(),n:players.length,max:MAXP,st:state,cfg:{t:cfg.t,g:cfg.g,f:cfg.f}}; }
+function pubEnsure(){
+  if(PUB.room) return Promise.resolve(true);
+  if(PUB.joining) return PUB.joining;
+  PUB.joining=(async()=>{
+    if(!await libReady()){ PUB.joining=null; return false; }
+    const c=await roomConfig();
+    if(PUB.room){ PUB.joining=null; return true; }
+    const room=window.Trystero.joinRoom(c,LOBBY_ID);
+    const act=room.makeAction('ad');
+    PUB.room=room; PUB.t0=performance.now();
+    PUB.send=(d,target)=>{ try{ const r=target?act.send(d,{target}):act.send(d); if(r&&r.catch) r.catch(()=>{}); }catch(e){} };
+    act.onMessage=(d,meta)=>{
+      if(!d||typeof d!=='object') return;
+      const from=meta&&meta.peerId;
+      if(d.t==='req'){ if(PUB.announcing && NET.role==='host' && from) PUB.send(adMsg(),from); return; }
+      const code=String(d.code||'');
+      if(!/^[A-Z0-9]{5}$/.test(code) || (NET.role==='host' && code===NET.code)) return;
+      if(d.t==='gone'){ PUB.list.delete(code); renderRooms(); return; }
+      if(d.t!=='ad') return;
+      const cf=d.cfg||{};
+      PUB.list.set(code,{code, peer:from, name:String(d.name||d.host||'Oda').slice(0,24), host:String(d.host||'Oyuncu').slice(0,12),
+        n:Math.max(0,Math.min(MAXP,d.n|0)), max:MAXP, st: d.st==='lobby'?'lobby':'play',
+        cfg:{t:[180,300,600].includes(cf.t)?cf.t:180, g:[0,3,5].includes(cf.g)?cf.g:0, f:SAHA[cf.f]?cf.f:'s'}, seen:performance.now()});
+      renderRooms();
+    };
+    room.onPeerJoin=id=>{ if(PUB.announcing && NET.role==='host') PUB.send(adMsg(),id); };
+    room.onPeerLeave=id=>{ let ch=false; for(const [k,v] of PUB.list) if(v.peer===id){ PUB.list.delete(k); ch=true; } if(ch) renderRooms(); };
+    PUB.joining=null; renderRooms(); return true;
+  })();
+  return PUB.joining;
 }
 async function pubHostStart(){
   if(NET.role!=='host'||!pubRoom) return;
-  const ok=await pubJoin('host'); if(!ok||NET.role!=='host'||!pubRoom) return;
-  clearInterval(PUB.timer);
+  const ok=await pubEnsure(); if(!ok||NET.role!=='host'||!pubRoom) return;
+  clearInterval(PUB.timer); PUB.announcing=true;
   let lastSig='', lastAt=0;
   const tick=()=>{
-    if(NET.role!=='host'||!pubRoom||!PUB.send) return;
+    if(NET.role!=='host'||!pubRoom||!PUB.send){ return; }
     const m=adMsg(), sig=JSON.stringify(m), now=performance.now();
     if(sig!==lastSig || now-lastAt>2500){ PUB.send(m); lastSig=sig; lastAt=now; }
   };
@@ -1200,60 +1231,72 @@ async function pubHostStart(){
 }
 function pubStopAnnounce(){
   clearInterval(PUB.timer); PUB.timer=null;
-  if(PUB.mode==='host' && NET.code && PUB.send) PUB.send({t:'gone',code:NET.code});
-  if(PUB.room) PUB.mode='idle';
+  if(PUB.announcing && NET.code && PUB.send) PUB.send({t:'gone',code:NET.code});
+  PUB.announcing=false;
 }
+addEventListener('pagehide',()=>pubStopAnnounce());
 function renderRooms(){
-  const box=$('rmList'); if(!box) return;
+  const box=$('rmList'); if(!box || $('rooms').classList.contains('hidden')) return;
   const now=performance.now();
   for(const [k,v] of PUB.list) if(now-v.seen>9000) PUB.list.delete(k);
-  const items=[...PUB.list.values()].sort((a,b)=>((a.st==='lobby'?0:1)-(b.st==='lobby'?0:1)) || (b.n-a.n));
+  const items=[...PUB.list.values()].sort((a,b)=>((a.n>=a.max)-(b.n>=b.max)) || ((a.st==='lobby'?0:1)-(b.st==='lobby'?0:1)) || (b.n-a.n) || a.name.localeCompare(b.name,'tr'));
+  $('rmLive').lastChild.textContent = `${items.length} oda`;
   box.innerHTML='';
+  if(!items.length){
+    const warming = !PUB.room || now-PUB.t0<4000;
+    if(warming){
+      for(let i=0;i<3;i++){ const r=document.createElement('div'); r.className='rm-row'; r.style.cursor='default';
+        r.innerHTML='<div class="rm-skel" style="width:70%"></div><div class="rm-skel"></div><div class="rm-skel"></div><div class="rm-skel rm-c4"></div>'; box.appendChild(r); }
+    } else {
+      const e=document.createElement('div'); e.className='rm-empty';
+      e.textContent = (window.Trystero && relayCount()===0) ? 'Sunuculara ulaşılamıyor. İnternetini kontrol et.' : 'Şu an açık oda yok. İlk odayı sen kur!';
+      box.appendChild(e);
+    }
+    return;
+  }
   for(const r of items){
     const full=r.n>=r.max;
-    const row=document.createElement('div'); row.className='rm-item'+(full?' full':''); row.dataset.code=r.code;
-    const main=document.createElement('div'); main.className='rm-main';
-    const b=document.createElement('b'); b.textContent=r.host;
-    const sm=document.createElement('small');
-    sm.textContent=`${r.n}/${r.max} oyuncu · ${r.cfg.t/60} dk · ${SAHA[r.cfg.f]}${r.cfg.g?` · ${r.cfg.g} gol`:''}`;
-    main.append(b,sm);
-    const badge=document.createElement('span'); badge.className='badge '+(r.st==='lobby'?'lobby':'play'); badge.textContent=r.st==='lobby'?'Lobide':'Maçta';
-    const btn=document.createElement('button'); btn.className='mk-btn'; btn.textContent=full?'Dolu':'Katıl'; btn.disabled=full;
-    btn.onclick=()=>joinFromList(r.code);
-    row.append(main,badge,btn); box.appendChild(row);
+    const row=document.createElement('div'); row.className='rm-row'+(full?' full':''); row.dataset.code=r.code;
+    row.tabIndex=full?-1:0; row.setAttribute('role','button');
+    const c1=document.createElement('div');
+    const nm=document.createElement('b'); nm.textContent=r.name;
+    const sub=document.createElement('small'); sub.textContent=`${r.host}`+(innerWidth<=560?` · ${r.cfg.t/60} dk · ${SAHA[r.cfg.f]}`:'');
+    c1.append(nm,sub);
+    const c2=document.createElement('span'); c2.className='rm-n'; c2.textContent=`${r.n}/${r.max}`;
+    const c3=document.createElement('span'); c3.className='badge '+(full?'play':r.st==='lobby'?'lobby':'play'); c3.textContent= full?'Dolu': r.st==='lobby'?'Lobide':'Maçta';
+    c3.style.justifySelf='start';
+    const c4=document.createElement('span'); c4.className='rm-c4'; c4.textContent=`${r.cfg.t/60} dk · ${SAHA[r.cfg.f]} saha${r.cfg.g?` · ${r.cfg.g} gol`:''}`;
+    row.append(c1,c2,c3,c4);
+    if(!full){ row.onclick=()=>joinFromList(r.code); row.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); joinFromList(r.code); } }; }
+    box.appendChild(row);
   }
-  const secs=(now-PUB.t0)/1000, relays=window.Trystero?relayCount():0;
-  $('rmLive').textContent = items.length ? `${items.length} oda` : '';
-  let msg='';
-  if(!items.length){
-    if(window.Trystero && relays===0 && secs>10) msg='Sunuculara ulaşılamıyor. İnternetini kontrol et.';
-    else if(secs<6) msg='Odalar aranıyor...';
-    else msg='Şu an açık oda yok. Bir oda kur, başkaları da listede görsün!';
-  }
-  $('rmMsg').textContent=msg;
 }
-async function openRooms(){
-  initAudio(); PUB.list.clear(); PUB.t0=performance.now();
+function openRooms(){
+  initAudio(); $('rmName').value=nameIn.value;
   showScreen('rooms'); renderRooms();
-  clearInterval(PUB.ui); PUB.ui=setInterval(()=>{ if(PUB.mode==='browse') renderRooms(); },1000);
-  const ok=await pubJoin('browse');
-  if(!ok) $('rmMsg').textContent='Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.';
+  clearInterval(PUB.ui); PUB.ui=setInterval(renderRooms,1000);
+  pubEnsure().then(ok=>{ if(!ok){ $('rmList').innerHTML='<div class="rm-empty">Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.</div>'; } else if(PUB.send) PUB.send({t:'req'}); });
 }
-function closeRooms(){ clearInterval(PUB.ui); PUB.ui=null; if(PUB.mode==='browse') pubLeave(); }
+function closeRooms(){ clearInterval(PUB.ui); PUB.ui=null; }
 function joinFromList(code){
   closeRooms();
   $('onCode').value=code; $('onName').value=nameIn.value; showScreen('online');
   joinRoom(code);
 }
+$('rmName').addEventListener('input',()=>{ nameIn.value=$('rmName').value; try{localStorage.setItem('mk_name',nameIn.value.trim());}catch(e){} });
 $('openRooms').onclick=openRooms;
 $('rmBack').onclick=()=>{ closeRooms(); showScreen('menu'); };
-$('rmHost').onclick=()=>{ clearInterval(PUB.ui); PUB.ui=null; if(PUB.room) PUB.mode='idle'; PUB.list.clear(); pubRoom=true; $('onName').value=nameIn.value; showScreen('online'); hostRoom(); };
+$('rmRefresh').onclick=()=>{ PUB.list.clear(); PUB.t0=performance.now()-2500; renderRooms(); if(PUB.send) PUB.send({t:'req'}); };
+$('rmHost').onclick=()=>{ closeRooms(); pubRoom=true; $('onName').value=nameIn.value; hostRoom(); };
 $('lbPub').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   if(NET.role!=='host') return;
   pubRoom = b.dataset.v==='1';
   if(pubRoom) pubHostStart(); else pubStopAnnounce();
   renderLobby();
 }));
+$('lbRoomName').addEventListener('input',()=>{ roomName=$('lbRoomName').value.trim(); });
+// Sayfa açılır açılmaz listeye bağlan ki "Odalar" ekranı hemen dolu gelsin
+pubEnsure();
 
 // Linkle gelindiyse doğrudan katılma ekranı
 const hm=location.hash.replace('#','').toUpperCase();
