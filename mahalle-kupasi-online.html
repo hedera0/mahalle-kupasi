@@ -49,7 +49,7 @@ body{
   border-radius:8px; width:34px; height:34px; font-size:14px; cursor:pointer;
 }
 #stage{position:relative; flex:1; min-height:0; background:var(--field); touch-action:none; overflow:hidden}
-canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+#c{position:absolute; inset:0; width:100%; height:100%; display:block}
 .overlay{
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   background:rgba(10,20,12,.55); padding:16px; z-index:5;
@@ -109,6 +109,19 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
   font:800 1.05rem "Rubik",sans-serif; z-index:3; pointer-events:none; border:3px solid rgba(0,0,0,.25);
 }
 #kickHint.on{background:#fff}
+.skillbtn{position:absolute;z-index:3;display:none;align-items:center;gap:8px;border:0;cursor:pointer;font:800 .9rem "Rubik",system-ui,sans-serif;color:#1b1b1b;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.skillbtn .sk-ic{font-size:1.3rem;line-height:1}
+.skillbtn.ready{display:flex;animation:skpop .35s ease-out}
+.skillbtn kbd{font-size:.75rem;border-color:#bbb;color:#1b1b1b}
+@keyframes skpop{0%{transform:scale(.6)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+.nottouch .skillbtn{left:50%;bottom:16px;margin-left:-90px;width:180px;justify-content:center;padding:9px 14px;border-radius:99px}
+.touch .skillbtn{display:flex;right:calc(28px + env(safe-area-inset-right,0px));bottom:122px;width:64px;height:64px;border-radius:50%;justify-content:center;padding:0;border:3px solid rgba(0,0,0,.2)}
+.touch .skillbtn .sk-tx,.touch .skillbtn kbd{display:none}
+.touch .skillbtn.empty{background:rgba(255,255,255,.25);box-shadow:none}
+.touch .skillbtn.empty .sk-ic{opacity:.45;filter:grayscale(1)}
+.touch .skillbtn.ready{box-shadow:0 0 0 4px var(--c,#fff),0 6px 18px rgba(0,0,0,.35)}
+.skillbtn.hidden{display:none!important}
+@media (prefers-reduced-motion: reduce){.skillbtn.ready{animation:none}}
 #moveHint{
   position:absolute; left:18px; bottom:30px; color:rgba(255,255,255,.7); font-size:.85rem; font-weight:600;
   display:none; z-index:3; pointer-events:none; max-width:45%;
@@ -161,6 +174,13 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
 .emo kbd{font-size:.7rem;margin-right:4px}
 .nottouch .emo{grid-template-columns:repeat(3,auto)}
 .touch .emo kbd{display:none}
+.name-row .inp.num{flex:0 0 64px;width:64px;text-align:center;font-family:"Bungee","Impact",sans-serif;font-size:1.05rem;letter-spacing:.04em;padding-left:4px;padding-right:4px}
+.name-row .inp.num::placeholder{font-family:"Rubik",sans-serif;font-size:.85rem;letter-spacing:0}
+.rm-namebox{flex:1;min-width:150px}
+.rm-namebox .inp{padding:8px 10px;font-size:.95rem}
+.rm-namebox .inp.num{flex-basis:54px;width:54px}
+#skillToast{position:absolute;left:50%;top:14px;transform:translate(-50%,-8px);z-index:5;background:rgba(15,25,18,.88);color:#fff;font-weight:800;font-size:.95rem;padding:8px 14px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+#skillToast.show{opacity:1;transform:translate(-50%,0)}
 .seg.two{grid-template-columns:repeat(2,1fr)}
 .rooms-card{width:min(760px,100%)!important;max-height:100%;display:flex;flex-direction:column;padding:16px!important}
 .rm-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -216,8 +236,10 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
   <canvas id="c"></canvas>
   <div id="joy"><div id="knob"></div></div>
   <div id="kickHint">Şut</div>
+  <button class="skillbtn empty" id="skillBtn" aria-label="Skili kullan"><span class="sk-ic" id="skIc">⚡</span><span class="sk-tx" id="skTx">Skill yok</span><kbd class="sk-key">E</kbd></button>
   <div id="moveHint">Sol tarafa dokunup sürükle</div>
   <div id="goalFx">GOL!</div>
+  <div id="skillToast" aria-live="polite"></div>
   <div class="emo hidden" id="emoPanel"></div>
   <div class="rotate hidden" id="rotateHint">
     <div class="rot-ico">📱</div>
@@ -230,8 +252,8 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
     <div class="card">
       <h1 class="logo">Mahalle Kupası<span>Topu kaleye sok, rakibini geç.</span></h1>
       <div class="wallet"><canvas id="skinPrev" width="80" height="80"></canvas><div><b id="goldTxt">0 altın</b><small id="skinTxt">Skin yok</small></div></div>
-      <div class="label">Adın</div>
-      <input class="inp" id="nameIn" maxlength="12" placeholder="Oyuncu" autocomplete="off">
+      <div class="label">Adın ve forma numaran</div>
+      <div class="row name-row"><input class="inp" id="nameIn" maxlength="12" placeholder="Oyuncu" autocomplete="off"><input class="inp num" id="numIn" inputmode="numeric" maxlength="2" placeholder="No" aria-label="Forma numarası" autocomplete="off"></div>
       <button class="btn" id="openRooms">Açık odalar</button>
       <button class="btn alt" id="openOnline">Arkadaşlarla online oyna</button>
       <div class="label">Bot zorluğu</div>
@@ -240,14 +262,21 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
         <button data-d="normal" aria-pressed="true">Orta</button>
         <button data-d="hard" aria-pressed="false">Zor</button>
       </div>
+      <div class="label">Maç türü</div>
+      <div class="seg" id="fmt">
+        <button data-n="1" aria-pressed="true">1v1</button>
+        <button data-n="2" aria-pressed="false">2v2</button>
+        <button data-n="3" aria-pressed="false">3v3</button>
+      </div>
       <button class="btn" id="playBot">Bota karşı oyna</button>
       <button class="btn alt" id="openMarket">Market</button>
       <button class="btn alt desk" id="play2p">İki kişi, aynı klavye</button>
       <div class="keys desk">
         Hareket: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> veya oklar, şut <kbd>Boşluk</kbd><br>
-        İki kişide mavi: oklar, şut <kbd>Enter</kbd> · Duraklat <kbd>Esc</kbd>
+        Skill kullan <kbd>E</kbd> · Duraklat <kbd>Esc</kbd><br>
+        İki kişide mavi: oklar, şut <kbd>Enter</kbd>, skill <kbd>Sağ Ctrl</kbd>
       </div>
-      <div class="keys mob">Sol tarafta parmağını sürükleyerek koş, sağ tarafa basılı tutarak şut çek.</div>
+      <div class="keys mob">Sol tarafta parmağını sürükleyerek koş, sağ tarafa basılı tutarak şut çek. Skill alınca Şut'un üstündeki butona bas.</div>
     </div>
   </div>
 
@@ -255,8 +284,8 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
     <div class="card">
       <h2 class="logo" style="font-size:1.6rem">Online oyna</h2>
       <p class="mk-msg" id="onMsg"></p>
-      <div class="label">Adın</div>
-      <input class="inp" id="onName" maxlength="12" placeholder="Oyuncu" autocomplete="off">
+      <div class="label">Adın ve forma numaran</div>
+      <div class="row name-row"><input class="inp" id="onName" maxlength="12" placeholder="Oyuncu" autocomplete="off"><input class="inp num" id="onNum" inputmode="numeric" maxlength="2" placeholder="No" aria-label="Forma numarası" autocomplete="off"></div>
       <button class="btn" id="onHost">Oda kur</button>
       <div class="label">veya oda koduyla katıl</div>
       <div class="row"><input class="inp" id="onCode" maxlength="5" placeholder="Kod" autocomplete="off" autocapitalize="characters"><button class="btn" id="onJoin">Katıl</button></div>
@@ -272,7 +301,7 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
         <span class="rm-live" id="rmLive"><i></i>0 oda</span>
       </div>
       <div class="rm-actions">
-        <input class="inp" id="rmName" maxlength="12" placeholder="Adın" autocomplete="off">
+        <div class="row name-row rm-namebox"><input class="inp" id="rmName" maxlength="12" placeholder="Adın" autocomplete="off"><input class="inp num" id="rmNum" inputmode="numeric" maxlength="2" placeholder="No" aria-label="Forma numarası" autocomplete="off"></div>
         <button class="btn small" id="rmHost">+ Oda kur</button>
         <button class="btn small alt" id="rmRefresh">↻ Yenile</button>
         <button class="btn small alt" id="rmBack">Geri</button>
@@ -300,12 +329,18 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
         <div class="seg two" id="lbPub"><button data-v="1">Herkese açık</button><button data-v="0">Sadece link</button></div>
       </div>
       <div id="lbCfg">
+        <div class="label">Maç türü</div>
+        <div class="seg" data-k="ts"><button data-v="1">1v1</button><button data-v="2">2v2</button><button data-v="3">3v3</button></div>
+        <div class="label">Boş yerlere bot</div>
+        <div class="seg two" data-k="bf"><button data-v="1">Açık</button><button data-v="0">Kapalı</button></div>
         <div class="label">Maç süresi</div>
         <div class="seg" data-k="t"><button data-v="180">3 dk</button><button data-v="300">5 dk</button><button data-v="600">10 dk</button></div>
         <div class="label">Gol limiti</div>
         <div class="seg" data-k="g"><button data-v="0">Yok</button><button data-v="3">3 gol</button><button data-v="5">5 gol</button></div>
         <div class="label">Saha</div>
         <div class="seg" data-k="f"><button data-v="s">Küçük</button><button data-v="m">Orta</button><button data-v="l">Büyük</button></div>
+        <div class="label">Skill modu</div>
+        <div class="seg" data-k="sk"><button data-v="2">Skilli</button><button data-v="1">Orta</button><button data-v="0">Skillsiz</button></div>
       </div>
       <div class="teams">
         <div><b class="tr">Kırmızı</b><ul id="lbRed"></ul></div>
@@ -357,7 +392,7 @@ kbd{font-family:inherit; font-weight:600; border:1px solid var(--line); border-b
 let W=840, H=440, L=40, R=800, T=40, B=400, GT=170, GB=270; const GD=32;
 let fieldReady=false, curField='s';
 const FIELDS={s:{pw:760,ph:360,gw:100},m:{pw:960,ph:440,gw:116},l:{pw:1160,ph:520,gw:130}};
-const PR=15, BR=10, MATCH_SECONDS=180, MAXP=6;
+const PR=15, BR=10, MATCH_SECONDS=180;
 let POSTS=[];
 function setField(k){
   if(!FIELDS[k]) k='s';
@@ -368,13 +403,90 @@ function setField(k){
 }
 setField('s');
 // Oda ayarları (oda sahibi lobide değiştirir)
-let cfg={t:180,g:0,f:'s'};
-const DEFAULT_CFG={t:180,g:0,f:'s'};
-const matchCfg=()=>mode==='online'?cfg:DEFAULT_CFG;
+// ts: takım boyutu (1=1v1, 2=2v2, 3=3v3) · bf: boş yerlere bot · sk: 2=Skilli, 1=Orta (az skill), 0=Skillsiz
+const FMT_FIELD={1:'s',2:'m',3:'l'};
+let cfg={t:180,g:0,f:'m',sk:2,ts:2,bf:1};
+let botTs=1;
+const DEFAULT_CFG={t:180,g:0,f:'s',sk:2,ts:1,bf:1};
+const matchCfg=()=>mode==='online'?cfg:(mode==='bot'?{...DEFAULT_CFG,ts:botTs,f:FMT_FIELD[botTs]}:DEFAULT_CFG);
+const humans=list=>list.filter(p=>p.ctrl!=='bot');
 const ONLINE_REWARD=25;
 // Hızlı mesajlar
 const EMOTES=['Haha 😂','GG 👏','Pas ver! ⚽','Gol! 🔥','Bu kadar mı? 😎','Hadi ya! 😤'];
 const TEAMC={red:'#e2483d',blue:'#2f6fd0'};
+// ---------- Skiller ----------
+// Her 15 sn'de bir santra noktasında bir skill çıkar; üstünden geçen alır, hemen çalışır.
+const SKILLS={
+  power:  {icon:'💥',name:'Güçlü şut',  frames:600, color:'#ff7a1a'}, // aktif edince ilk şut çok güçlü (10 sn içinde)
+  freeze: {icon:'❄️',name:'Dondur',     frames:90,  color:'#5cc8ff'}, // en yakın rakip 1,5 sn donar
+  wall:   {icon:'🧱',name:'Kale duvarı',frames:240, color:'#c47a45'}, // kendi kalesi 4 sn kapanır
+  bfreeze:{icon:'🧊',name:'Top dondur', frames:90,  color:'#9be7ff'}  // top 1,5 sn olduğu yerde durur
+};
+const SKILL_TYPES=Object.keys(SKILLS);
+const SPAWN_EVERY=900, PICK_LIFE=480, PICK_R=14, WALL_W=7, POWER_MUL=2.6;
+const SK={pickup:null,timer:SPAWN_EVERY,walls:{red:0,blue:0},ballFrozen:0,fire:0,ev:{id:0,txt:''}};
+const skillsOn=()=>matchCfg().sk>0;
+const spawnEvery=()=>matchCfg().sk===1?1800:SPAWN_EVERY;
+function resetSkills(){
+  SK.pickup=null; SK.timer=spawnEvery(); SK.walls.red=SK.walls.blue=0; SK.ballFrozen=0; SK.fire=0;
+  if(typeof ball!=='undefined') ball.im=1;
+  for(const p of players){ p.power=0; p.frozen=0; }
+}
+let toastT=null;
+function showToast(txt){
+  const el=document.getElementById('skillToast'); if(!el) return;
+  el.textContent=txt; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),1800);
+}
+function applySkill(p,type){
+  const s=SKILLS[type]; if(!s) return;
+  if(type==='power'){ p.power=s.frames; }
+  else if(type==='freeze'){
+    const opp=players.filter(o=>o.team!==p.team).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+    if(opp){ opp.frozen=s.frames; opp.vx*=0.2; opp.vy*=0.2; opp.kick=false; }
+  }
+  else if(type==='wall'){ SK.walls[p.team]=s.frames; }
+  else if(type==='bfreeze'){ SK.ballFrozen=s.frames; ball.vx=ball.vy=0; }
+  SK.ev={id:SK.ev.id+1, txt:`${s.icon} ${p.name||'Oyuncu'}: ${s.name}!`};
+  showToast(SK.ev.txt); beep(784,0.08,'square',0.06); beep(1175,0.12,'square',0.06,0.08);
+}
+function activateSkill(p){
+  if(!p || !p.slot || p.frozen>0 || state!=='play') return false;
+  const ty=p.slot; p.slot=null; applySkill(p,ty); return true;
+}
+function requestSkill(){
+  if(state!=='play') return;
+  if(NET.role==='client'){ sendHost({t:'sk'}); return; }
+  const me=players.find(p=>p.ctrl==='local'||p.ctrl==='kb1'); if(me) activateSkill(me);
+}
+function stepSkills(){
+  if(!skillsOn()) return;
+  for(const p of players){ if(p.power>0) p.power--; if(p.frozen>0) p.frozen--; }
+  // Bot elindeki skilli uygun anda kullanır
+  for(const p of players){
+    if(p.ctrl!=='bot' || !p.slot || p.frozen>0) continue;
+    if(p.slot==='power'){ if(Math.hypot(ball.x-p.x,ball.y-p.y)<70) activateSkill(p); }
+    else if(--p.botWait<=0) activateSkill(p);
+  }
+  if(SK.walls.red>0) SK.walls.red--; if(SK.walls.blue>0) SK.walls.blue--;
+  if(SK.fire>0) SK.fire--;
+  if(SK.pickup){
+    if(--SK.pickup.life<=0) SK.pickup=null;
+    else for(const p of players){
+      if(p.frozen>0) continue;
+      if(p.slot) continue; // elinde skill varken yenisini alamaz
+      if(Math.hypot(p.x-W/2,p.y-H/2)<PR+PICK_R){
+        const ty=SK.pickup.type, s=SKILLS[ty]; SK.pickup=null; p.slot=ty; p.botWait=30+Math.floor(Math.random()*60);
+        SK.ev={id:SK.ev.id+1, txt:`${s.icon} ${p.name||'Oyuncu'} ${s.name} aldı`}; showToast(SK.ev.txt); beep(1046,0.08,'sine',0.06); beep(1318,0.1,'sine',0.06,0.07);
+        break;
+      }
+    }
+  }
+  if(--SK.timer<=0){
+    const busy = SK.pickup || Math.hypot(ball.x-W/2,ball.y-H/2)<45 || players.some(p=>Math.hypot(p.x-W/2,p.y-H/2)<PR+PICK_R+6);
+    if(busy) SK.timer=30;
+    else { SK.pickup={type:SKILL_TYPES[Math.floor(Math.random()*SKILL_TYPES.length)],life:PICK_LIFE}; SK.timer=spawnEvery(); beep(1046,0.12,'sine',0.06); }
+  }
+}
 const DIFF={
   easy:  {acc:0.78, think:12, kickAlign:0.35, err:0.45, kickChance:0.5},
   normal:{acc:0.93, think:6,  kickAlign:0.7,  err:0.18, kickChance:0.85},
@@ -425,12 +537,6 @@ function drawFlag(c,code,r){
   }
   c.restore();
 }
-function drawSkinDisc(p,code,kick){
-  ctx.fillStyle='rgba(0,0,0,.22)'; circle(p.x+2,p.y+3,p.r); ctx.fill();
-  ctx.save(); ctx.translate(p.x,p.y); if(portrait) ctx.rotate(Math.PI/2); drawFlag(ctx,code,p.r); ctx.restore();
-  circle(p.x,p.y,p.r); ctx.lineWidth=kick?3.5:2.5; ctx.strokeStyle=kick?'#ffffff':'#111'; ctx.stroke();
-  if(!kick){ circle(p.x,p.y,p.r+2.5); ctx.lineWidth=2; ctx.strokeStyle='#e2483d'; ctx.stroke(); }
-}
 function paintIcon(cnv,code){
   const c=cnv.getContext('2d'), w=cnv.width, r=w/2-4;
   c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,w,w); c.translate(w/2,w/2);
@@ -470,20 +576,30 @@ const nameIn=$('nameIn');
 try{ nameIn.value=localStorage.getItem('mk_name')||''; }catch(e){}
 nameIn.addEventListener('input',()=>{ try{localStorage.setItem('mk_name',nameIn.value.trim());}catch(e){} });
 const myName=()=>(nameIn.value.trim()||'Oyuncu').slice(0,12);
+// Forma numarası (1-99), adın yanındaki küçük kutu
+const cleanNum=v=>{ v=String(v==null?'':v).replace(/\D/g,'').slice(0,2).replace(/^0+/,''); return v; };
+let myNum=''; try{ myNum=cleanNum(localStorage.getItem('mk_num')); }catch(e){}
+const numIns=['numIn','onNum','rmNum'].map(id=>document.getElementById(id));
+function setNum(v,src){
+  myNum=cleanNum(v);
+  numIns.forEach(el=>{ if(el && el.value!==myNum) el.value=myNum; });
+  try{ localStorage.setItem('mk_num',myNum); }catch(e){}
+}
+numIns.forEach(el=>{ if(!el) return; el.value=myNum; el.addEventListener('input',()=>setNum(el.value,el)); });
 
 // ---------- Durum ----------
 let mode='bot', diff='normal', state='menu';
 let scoreL=0, scoreR=0, timeLeft=MATCH_SECONDS, golden=false, goalTimer=0;
 const ball={x:W/2,y:H/2,vx:0,vy:0,r:BR,im:1};
 let players=[];
-const botMem={timer:0,ix:0,iy:0,kick:false};
-function mkPlayer(id,name,team,skin,ctrl){ return {id,name,team,skin:skin||null,ctrl,emo:-1,emoUntil:0,lastEmo:-1e9,x:W/2,y:H/2,vx:0,vy:0,r:PR,im:0.5,cd:0,kick:false,ix:0,iy:0}; }
+function mkPlayer(id,name,team,skin,ctrl){ return {id,name,team,skin:skin||null,ctrl,num:'',power:0,frozen:0,slot:null,botWait:0,emo:-1,emoUntil:0,lastEmo:-1e9,x:W/2,y:H/2,vx:0,vy:0,r:PR,im:0.5,cd:0,kick:false,ix:0,iy:0}; }
 const OFFS=[0,-90,90,-160,160];
 function spot(team,i){ return {x: team==='red' ? L+150-(i>0?45:0) : R-150+(i>0?45:0), y:H/2+OFFS[i%5]}; }
 function kickoff(){
   const cnt={red:0,blue:0};
   for(const p of players){ const s=spot(p.team,cnt[p.team]++); p.x=s.x; p.y=s.y; p.vx=p.vy=0; p.cd=0; }
   ball.x=W/2; ball.y=H/2; ball.vx=ball.vy=0;
+  resetSkills();
 }
 
 // ---------- Ses ----------
@@ -506,6 +622,8 @@ addEventListener('keydown',e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code) && (state==='play'||state==='goal')) e.preventDefault();
   if(e.code==='Escape'||e.code==='KeyP'){ togglePause(); return; }
   const dg=/^Digit([1-6])$/.exec(e.code); if(dg){ sendEmote(+dg[1]-1); return; }
+  if(e.code==='KeyE' && !e.repeat){ requestSkill(); return; }
+  if(e.code==='ControlRight' && !e.repeat && mode==='2p'){ const p2=players.find(p=>p.ctrl==='kb2'); if(p2) activateSkill(p2); return; }
   keys.add(e.code);
 });
 addEventListener('keyup',e=>keys.delete(e.code));
@@ -517,7 +635,7 @@ function toWorld(sx,sy){ return portrait?{x:-sy,y:sx}:{x:sx,y:sy}; }
 const stage=$('stage'), joy=$('joy'), knob=$('knob'), kickHint=$('kickHint');
 const touch={joyId:null,ox:0,oy:0,vx:0,vy:0,kickIds:new Set()};
 stage.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.overlay,.emo')) return;
+  if(e.target.closest('.overlay,.emo,.skillbtn')) return;
   if(e.pointerType==='mouse') return;
   const r=stage.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
   if(x<r.width*0.55 && touch.joyId===null){
@@ -562,26 +680,37 @@ function localInput(ctrl){
 
 // ---------- Bot ----------
 function botThink(me){
-  const D=DIFF[diff];
-  if(--botMem.timer>0){ me.ix=botMem.ix; me.iy=botMem.iy; me.kick=botMem.kick && Math.random()<D.kickChance; return; }
-  botMem.timer=D.think;
+  const D=DIFF[diff], m=me.mem||(me.mem={timer:Math.floor(Math.random()*D.think),ix:0,iy:0,kick:false});
+  if(--m.timer>0){ me.ix=m.ix; me.iy=m.iy; me.kick=m.kick && Math.random()<D.kickChance; return; }
+  m.timer=D.think;
+  // Mantık maviye göre yazıldı (sola hücum eder); kırmızı botlar için saha aynalanır.
+  const flip = me.team==='red';
+  const X=x=>flip?W-x:x;
+  const bx=X(ball.x), by=ball.y, bvx=flip?-ball.vx:ball.vx, bvy=ball.vy, ex=X(me.x), ey=me.y;
   const tgx=L-10, tgy=H/2;
-  const dB=Math.hypot(ball.x-me.x,ball.y-me.y)||1;
+  const dB=Math.hypot(bx-ex,by-ey)||1;
+  // takım içi rol: topa en yakın olan kovalar, diğerleri destek verir
+  const rank=players.filter(p=>p!==me && p.team===me.team && p.frozen<=0 && Math.hypot(ball.x-p.x,ball.y-p.y)<dB-12).length;
   const lead=Math.min(dB/7,18);
-  const px=ball.x+ball.vx*lead, py=ball.y+ball.vy*lead;
+  const px=bx+bvx*lead, py=by+bvy*lead;
   let ux=tgx-px, uy=tgy-py; const ul=Math.hypot(ux,uy)||1; ux/=ul; uy/=ul;
   const e=(Math.random()*2-1)*D.err, c=Math.cos(e), s=Math.sin(e);
   [ux,uy]=[ux*c-uy*s, ux*s+uy*c];
   const reach=PR+BR;
-  const align=((ball.x-me.x)/dB)*ux+((ball.y-me.y)/dB)*uy;
+  const align=((bx-ex)/dB)*ux+((by-ey)/dB)*uy;
   let tx,ty,kick=false;
-  if(me.x < ball.x-4 && align<0.2){ tx=px+38; ty=py+(me.y<py?-34:34); }
-  else if(align>0.55 && dB<reach+28){ tx=ball.x+ux*14; ty=ball.y+uy*14; kick = dB<reach+6 && align>D.kickAlign; }
+  if(rank===1){ tx=Math.min(bx+150,R-70); ty=H/2+(by-H/2)*0.45; }               // geride savunma
+  else if(rank>=2){ tx=Math.max(bx-10,L+90); ty=by<H/2?Math.min(by+120,B-30):Math.max(by-120,T+30); } // kanatta pas bekler
+  else if(ex < bx-4 && align<0.2){ tx=px+38; ty=py+(ey<py?-34:34); }
+  else if(align>0.55 && dB<reach+28){ tx=bx+ux*14; ty=by+uy*14; kick = dB<reach+6 && align>D.kickAlign; }
   else { tx=px-ux*(reach+4); ty=py-uy*(reach+4); }
+  if(rank>0 && dB<reach+8 && align>D.kickAlign){ kick=true; }
+  if(SK.pickup && skillsOn()){ const dp=Math.hypot(W/2-ex,H/2-ey); if(dp<200 && dp<dB*0.8 && !me.slot){ tx=W/2; ty=H/2; kick=false; } }
   ty=Math.max(T-10,Math.min(B+10,ty)); tx=Math.max(L-5,Math.min(R+20,tx));
-  let mx=tx-me.x, my=ty-me.y; const md=Math.hypot(mx,my);
+  let mx=tx-ex, my=ty-ey; const md=Math.hypot(mx,my);
   if(md<3){mx=my=0;} else { const f=Math.min(1,md/20); mx=mx/md*f; my=my/md*f; }
-  botMem.ix=mx; botMem.iy=my; botMem.kick=kick;
+  if(flip) mx=-mx;
+  m.ix=mx; m.iy=my; m.kick=kick;
   me.ix=mx; me.iy=my; me.kick=kick && Math.random()<D.kickChance;
 }
 
@@ -597,6 +726,7 @@ function collide(a,b,e){
 }
 function movePlayer(p,accMul){
   let ix=p.ix, iy=p.iy; const il=Math.hypot(ix,iy); if(il>1){ix/=il; iy/=il;}
+  if(p.frozen>0){ ix=iy=0; p.kick=false; p.vx*=0.7; p.vy*=0.7; }
   const a=(p.kick?0.21:0.29)*accMul;
   p.vx+=ix*a; p.vy+=iy*a; p.vx*=0.955; p.vy*=0.955;
   p.x+=p.vx; p.y+=p.vy;
@@ -619,11 +749,18 @@ function ballWalls(){
   }
   if(b.y-r<T){b.y=T+r; b.vy=-b.vy*bc;}
   if(b.y+r>B){b.y=B-r; b.vy=-b.vy*bc;}
+  if(SK.walls.red>0 && b.x>L-2 && b.x-r<L+WALL_W && b.y>GT-12 && b.y<GB+12){ b.x=L+WALL_W+r; b.vx=Math.abs(b.vx)*0.8; }
+  if(SK.walls.blue>0 && b.x<R+2 && b.x+r>R-WALL_W && b.y>GT-12 && b.y<GB+12){ b.x=R-WALL_W-r; b.vx=-Math.abs(b.vx)*0.8; }
 }
 function tryKick(p){
-  if(!p.kick||p.cd>0) return;
+  if(!p.kick||p.cd>0||p.frozen>0||SK.ballFrozen>0) return;
   const dx=ball.x-p.x, dy=ball.y-p.y, d=Math.hypot(dx,dy);
-  if(d<=p.r+ball.r+4 && d>0){ ball.vx+=dx/d*6.6; ball.vy+=dy/d*6.6; p.cd=12; beep(150,0.09,'triangle',0.35); }
+  if(d<=p.r+ball.r+4 && d>0){
+    const pw = p.power>0 ? POWER_MUL : 1;
+    ball.vx+=dx/d*6.6*pw; ball.vy+=dy/d*6.6*pw; p.cd=12;
+    if(pw>1){ p.power=0; SK.fire=50; beep(90,0.25,'sawtooth',0.3); beep(60,0.3,'triangle',0.3,0.03); }
+    else beep(150,0.09,'triangle',0.35);
+  }
 }
 function physicsStep(){
   for(const p of players){
@@ -631,7 +768,7 @@ function physicsStep(){
     else if(p.ctrl!=='remote'){ const v=localInput(p.ctrl); p.ix=v.x; p.iy=v.y; p.kick=v.k; }
   }
   for(const p of players) movePlayer(p, p.ctrl==='bot'?DIFF[diff].acc:1);
-  ball.vx*=0.99; ball.vy*=0.99; ball.x+=ball.vx; ball.y+=ball.vy;
+  if(SK.ballFrozen>0){ SK.ballFrozen--; ball.vx=ball.vy=0; ball.im=0; } else { ball.im=1; ball.vx*=0.99; ball.vy*=0.99; ball.x+=ball.vx; ball.y+=ball.vy; }
   for(let it=0;it<2;it++){
     for(let i=0;i<players.length;i++){
       for(let j=i+1;j<players.length;j++) collide(players[i],players[j],0.5);
@@ -642,6 +779,7 @@ function physicsStep(){
     ballWalls();
   }
   if(state==='play'){
+    stepSkills();
     for(const p of players) tryKick(p);
     if(ball.x<L-ball.r && ball.y>GT && ball.y<GB) goal('R');
     else if(ball.x>R+ball.r && ball.y>GT && ball.y<GB) goal('L');
@@ -669,7 +807,7 @@ function goalFx(side){
 function goal(side){
   if(side==='L') scoreL++; else scoreR++;
   state='goal'; goalTimer=95; goalFx(side);
-  if(mode==='bot'){ const b=players.find(p=>p.ctrl==='bot'); if(b){ if(side==='R') setTimeout(()=>setEmote(b,0),400); else if(Math.random()<0.5) setTimeout(()=>setEmote(b,5),400); } }
+  if(mode==='bot'){ const b=players.find(p=>p.ctrl==='bot'&&p.team==='blue'); if(b){ if(side==='R') setTimeout(()=>setEmote(b,0),400); else if(Math.random()<0.5) setTimeout(()=>setEmote(b,5),400); } }
 }
 function myTeam(){
   if(mode==='online'){
@@ -750,10 +888,16 @@ function drawField(){
   for(const p of POSTS){ ctx.fillStyle='#f4f4f0'; circle(p.x,p.y,p.r); ctx.fill(); ctx.strokeStyle='#1b1b1b'; ctx.lineWidth=2; ctx.stroke(); }
 }
 function drawPlayer(p,showName,isMe){
+  const fx = p.fx!==undefined ? p.fx : ((p.power>0?1:0)|(p.frozen>0?2:0));
+  if(fx&1){ const pulse=2+Math.sin(performance.now()/90)*1.5; ctx.strokeStyle='rgba(255,122,26,.9)'; ctx.lineWidth=4; circle(p.x,p.y,PR+4+pulse); ctx.stroke(); }
   if(p.kick){ ctx.strokeStyle='rgba(245,197,24,.55)'; ctx.lineWidth=2; circle(p.x,p.y,PR+BR+4); ctx.stroke(); }
   ctx.fillStyle='rgba(0,0,0,.22)'; circle(p.x+2,p.y+3,PR); ctx.fill();
   ctx.save(); ctx.translate(p.x,p.y); if(portrait) ctx.rotate(Math.PI/2);
   if(p.skin) drawFlag(ctx,p.skin,PR); else { ctx.fillStyle=TEAMC[p.team]; ctx.beginPath(); ctx.arc(0,0,PR,0,Math.PI*2); ctx.fill(); }
+  if(p.num){
+    ctx.font='800 12px Rubik, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.strokeText(p.num,0,1); ctx.fillStyle='#fff'; ctx.fillText(p.num,0,1);
+  }
   if(showName){
     ctx.font='600 12px Rubik, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
     ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.strokeText(p.name,0,-PR-6);
@@ -762,7 +906,29 @@ function drawPlayer(p,showName,isMe){
   ctx.restore();
   circle(p.x,p.y,PR); ctx.lineWidth=p.kick?3.5:2.5; ctx.strokeStyle=p.kick?'#ffffff':'#111'; ctx.stroke();
   if(p.skin && !p.kick){ circle(p.x,p.y,PR+2.5); ctx.lineWidth=2; ctx.strokeStyle=TEAMC[p.team]; ctx.stroke(); }
+  if(p.slot && SKILLS[p.slot]){ ctx.fillStyle='#fff'; circle(p.x-PR*0.8,p.y-PR*0.8,7.5); ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=SKILLS[p.slot].color; ctx.stroke();
+    ctx.font='10px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(SKILLS[p.slot].icon,p.x-PR*0.8,p.y-PR*0.8+0.5); }
+  if(fx&2){ ctx.fillStyle='rgba(160,225,255,.55)'; circle(p.x,p.y,PR+1); ctx.fill(); ctx.lineWidth=2.5; ctx.strokeStyle='#e6f8ff'; ctx.stroke();
+    ctx.font='14px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('❄️',p.x+PR*0.75,p.y-PR*0.75); }
 }
+function drawSkillLayer(sk){
+  if(!sk) return;
+  // kale duvarları
+  const wl=(x)=>{ ctx.fillStyle='#c47a45'; ctx.fillRect(x,GT-12,WALL_W,GB-GT+24); ctx.strokeStyle='#5a3218'; ctx.lineWidth=1.5;
+    for(let y=GT-12;y<GB+12;y+=10){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+WALL_W,y); ctx.stroke(); }
+    ctx.strokeRect(x,GT-12,WALL_W,GB-GT+24); };
+  if(sk.w&&sk.w[0]) wl(L); if(sk.w&&sk.w[1]) wl(R-WALL_W);
+  // skill kutusu
+  if(sk.pk){
+    const [type,life]=sk.pk, s=SKILLS[type]; if(!s) return;
+    if(life<120 && Math.floor(life/8)%2) return;
+    const r=PICK_R+Math.sin(performance.now()/180)*1.5;
+    ctx.fillStyle='rgba(0,0,0,.25)'; circle(W/2+2,H/2+3,r); ctx.fill();
+    ctx.fillStyle='#ffffff'; circle(W/2,H/2,r); ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=s.color; ctx.stroke();
+    ctx.font='15px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(s.icon,W/2,H/2+1);
+  }
+}
+function localSkillState(){ return {pk:SK.pickup?[SK.pickup.type,SK.pickup.life]:0, w:[SK.walls.red>0?1:0,SK.walls.blue>0?1:0], bf:SK.ballFrozen>0?1:0, fi:SK.fire>0?1:0}; }
 function activeEmo(p){ return (p.emo>=0 && p.emoUntil>performance.now()) ? p.emo : -1; }
 function setEmote(p,i){
   const now=performance.now(); if(now-p.lastEmo<1200) return;
@@ -795,29 +961,36 @@ function render(){
       for(const a of s.p){
         let m=smooth.get(a[0]); if(!m){ m={x:a[4],y:a[5]}; smooth.set(a[0],m); }
         m.x+=(a[4]-m.x)*0.5; m.y+=(a[5]-m.y)*0.5;
-        list.push({id:a[0],name:a[1],team:a[2],skin:a[3]||null,x:m.x,y:m.y,kick:!!a[6],emo:a[7]==null?-1:a[7]});
+        list.push({id:a[0],name:a[1],team:a[2],skin:a[3]||null,x:m.x,y:m.y,kick:!!a[6],emo:a[7]==null?-1:a[7],num:a[8]||'',fx:a[9]|0,slot:a[10]||null});
       }
       sball.x+=(s.b[0]-sball.x)*0.6; sball.y+=(s.b[1]-sball.y)*0.6;
     }
     bx=sball.x; by=sball.y;
   } else { list=players; bx=ball.x; by=ball.y; meId= NET.role==='host'?'host':null; }
   const names = mode==='online';
+  const skState = NET.role==='client' ? (NET.snap&&NET.snap.sk) : localSkillState();
+  drawSkillLayer(skState);
   for(const p of list) drawPlayer(p,names,p.id===meId);
   for(const p of list){ const e = p.emoUntil!==undefined ? activeEmo(p) : p.emo; if(e>=0) drawBubble(p,EMOTES[e],names); }
   ctx.fillStyle='rgba(0,0,0,.22)'; circle(bx+2,by+3,BR); ctx.fill();
   ctx.fillStyle='#ffffff'; circle(bx,by,BR); ctx.fill();
   ctx.lineWidth=2; ctx.strokeStyle='#111'; ctx.stroke();
+  if(skState && skState.fi){ ctx.fillStyle='rgba(255,140,40,.55)'; circle(bx,by,BR); ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle='#ff7a1a'; circle(bx,by,BR+3); ctx.stroke(); }
+  if(skState && skState.bf){ ctx.fillStyle='rgba(155,231,255,.6)'; circle(bx,by,BR); ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle='#bff0ff'; circle(bx,by,BR+3); ctx.stroke(); }
 }
 let last=performance.now(), acc=0;
 function loop(now){
   acc+=Math.min(0.1,(now-last)/1000); last=now;
   while(acc>=1/60){ step(); acc-=1/60; }
-  render(); updateRotateHint(); requestAnimationFrame(loop);
+  render(); updateRotateHint(); updateSkillBtn(); requestAnimationFrame(loop);
 }
 
 // ---------- Ekranlar ----------
 const SCREENS=['menu','online','lobby','market','pause','over','rooms'];
 function showScreen(name){ for(const s of SCREENS) $(s).classList.toggle('hidden', s!==name); updateRotateHint(); }
+$('fmt').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  botTs=+b.dataset.n; $('fmt').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+}));
 $('diff').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   diff=b.dataset.d; $('diff').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
 }));
@@ -828,16 +1001,39 @@ function setNames(){
   $('pauseBtn').setAttribute('aria-label', mode==='online' ? 'Menü' : 'Duraklat');
   $('emoBtn').classList.toggle('hide', mode==='2p');
 }
-function resetMatch(){ const c=matchCfg(); if(curField!==c.f) setField(c.f); scoreL=scoreR=0; timeLeft=c.t; golden=false; botMem.timer=0; kickoff(); updateHUD(0,0,timeLeft,false); }
+function resetMatch(){ for(const p of players) p.slot=null; const c=matchCfg(); if(curField!==c.f) setField(c.f); scoreL=scoreR=0; timeLeft=c.t; golden=false; for(const p of players) p.mem=null; kickoff(); updateHUD(0,0,timeLeft,false); }
 function startMatch(m){
   mode=m; initAudio();
-  if(m==='bot') players=[mkPlayer('me',myName(),'red',save.equipped,'local'), mkPlayer('bot','Bot','blue',null,'bot')];
+  if(m==='bot'){
+    players=[mkPlayer('me',myName(),'red',save.equipped,'local')]; players[0].num=myNum;
+    let k=0;
+    for(let i=1;i<botTs;i++){ players.push(mkPlayer('bot'+(++k),'Bot '+k,'red',null,'bot')); }
+    for(let i=0;i<botTs;i++){ players.push(mkPlayer('bot'+(++k),'Bot '+k,'blue',null,'bot')); }
+  }
   else players=[mkPlayer('p1','Kırmızı','red',save.equipped,'kb1'), mkPlayer('p2','Mavi','blue',null,'kb2')];
   setNames(); resetMatch(); showScreen(null);
   if(document.activeElement) document.activeElement.blur();
   state='play'; beep(2000,0.25,'sine',0.05);
 }
 let rotateSkipped=false;
+let skBtnSig='';
+function mySlot(){
+  if(NET.role==='client'){ const s=NET.snap&&NET.snap.p.find(a=>a[0]===NET.myId); return s&&s[10]||null; }
+  const me=players.find(p=>p.ctrl==='local'||p.ctrl==='kb1'); return me&&me.slot||null;
+}
+function updateSkillBtn(){
+  const el=document.getElementById('skillBtn'); if(!el) return;
+  const playing=(state==='play'||state==='goal') && matchCfg().sk!==0 && (NET.role!=='client' || !NET.snap || !NET.snap.cfg || NET.snap.cfg.sk!==0);
+  const slot=playing?mySlot():null;
+  const sig=(playing?1:0)+'|'+(slot||'');
+  if(sig===skBtnSig) return; skBtnSig=sig;
+  el.classList.toggle('hidden',!playing);
+  el.classList.toggle('ready',!!slot); el.classList.toggle('empty',!slot);
+  const s=slot&&SKILLS[slot];
+  $('skIc').textContent=s?s.icon:'⚡'; $('skTx').textContent=s?s.name:'Skill yok';
+  el.style.setProperty('--c', s?s.color:'#fff');
+  el.setAttribute('aria-label', s?`${s.name} kullan`:'Skill yok');
+}
 function updateRotateHint(){
   const el=document.getElementById('rotateHint'); if(!el) return;
   const tall = isTouch && innerHeight > innerWidth*1.05;
@@ -867,6 +1063,7 @@ $('playBot').onclick=()=>startMatch('bot');
 $('play2p').onclick=()=>startMatch('2p');
 $('again').onclick=()=>startMatch(mode);
 $('resume').onclick=()=>{ if(mode==='online'){ $('pause').classList.add('hidden'); if(state==='lobby') $('lobby').classList.remove('hidden'); } else togglePause(); };
+$('skillBtn').addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); requestSkill(); });
 $('rotateSkip').onclick=()=>{ rotateSkipped=true; updateRotateHint(); };
 $('pauseBtn').onclick=togglePause;
 $('toMenu1').onclick=toMenu;
@@ -949,9 +1146,9 @@ async function hostRoom(){
   const {room,act}=openRoom(code,c,()=>{});
   act.onMessage=(d,meta)=>hostData(meta&&meta.peerId,d);
   room.onPeerJoin=id=>NET.send({t:'hi'},id);
-  room.onPeerLeave=id=>{ if(players.some(p=>p.id===id)){ players=players.filter(p=>p.id!==id); renderLobby(); } };
+  room.onPeerLeave=id=>{ if(players.some(p=>p.id===id)) dropPlayer(id); };
   mode='online'; setNames();
-  players=[mkPlayer('host',myName(),'red',save.equipped,'local')];
+  players=[mkPlayer('host',myName(),'red',save.equipped,'local')]; players[0].num=myNum;
   state='lobby'; resetMatch(); onMsg(''); showScreen('lobby'); renderLobby();
   NET.timer=setInterval(broadcast,33);
   roomName=defaultRoomName(); $('lbRoomName').value=roomName;
@@ -968,29 +1165,34 @@ function hostData(peerId,d){
   let p=players.find(x=>x.id===peerId);
   if(d.t==='h'){
     if(!p){
-      if(players.length>=MAXP){ NET.send({t:'full'},peerId); return; }
-      const red=players.filter(x=>x.team==='red').length, blue=players.length-red;
+      const hs=humans(players);
+      if(hs.length>=cfg.ts*2){ NET.send({t:'full'},peerId); return; }
+      const red=hs.filter(x=>x.team==='red').length, blue=hs.length-red;
       const team = red<=blue ? 'red':'blue';
+      // maç sırasında geldiyse o takımdaki bir botun yerine geçer
+      if(state==='play'||state==='goal'){ const bi=players.findIndex(x=>x.ctrl==='bot'&&x.team===team); if(bi>=0) players.splice(bi,1); }
       const skin = SKINS.some(s=>s[0]===d.skin) ? d.skin : null;
-      p=mkPlayer(peerId, String(d.name||'Oyuncu').slice(0,12), team, skin, 'remote');
+      p=mkPlayer(peerId, String(d.name||'Oyuncu').slice(0,12), team, skin, 'remote'); p.num=cleanNum(d.num);
       const s=spot(team, players.filter(x=>x.team===team).length); p.x=s.x; p.y=s.y;
       players.push(p); renderLobby();
     }
   } else if(d.t==='i' && p){ p.ix=clamp1(d.x); p.iy=clamp1(d.y); p.kick=!!d.k; }
-  else if(d.t==='tm' && p && state==='lobby'){ p.team = p.team==='red'?'blue':'red'; renderLobby(); }
+  else if(d.t==='tm' && p && state==='lobby'){ switchTeam(p); }
   else if(d.t==='e' && p){ const i=d.i|0; if(i>=0 && i<EMOTES.length) setEmote(p,i); }
+  else if(d.t==='sk' && p){ activateSkill(p); }
   if(p) p.lastRx=performance.now();
 }
 function snapshot(){
   return {t:'s',st:state,sL:scoreL,sR:scoreR,tl:Math.ceil(timeLeft),g:golden,b:[r1(ball.x),r1(ball.y)],
     f:curField, cfg:cfg,
-    p:players.map(p=>[p.id,p.name,p.team,p.skin||'',r1(p.x),r1(p.y),p.kick?1:0,activeEmo(p)])};
+    sk:{...localSkillState(), ev:[SK.ev.id,SK.ev.txt]},
+    p:players.map(p=>[p.id,p.name,p.team,p.skin||'',r1(p.x),r1(p.y),p.kick?1:0,activeEmo(p),p.num||'',(p.power>0?1:0)|(p.frozen>0?2:0),p.slot||''])};
 }
 function checkTeams(){
   if(NET.role!=='host' || !(state==='play'||state==='goal')) return;
   const red=players.some(p=>p.team==='red'), blue=players.some(p=>p.team==='blue');
-  if(red&&blue) return;
-  state='lobby'; resetMatch(); showScreen('lobby'); renderLobby();
+  if(red&&blue&&humans(players).length>0) return;
+  state='lobby'; removeBots(); resetMatch(); showScreen('lobby'); renderLobby();
   lbMsg('Bir oyuncu oyundan düştü, maç durduruldu.');
 }
 function broadcast(){
@@ -998,7 +1200,7 @@ function broadcast(){
   checkTeams();
   const now=performance.now();
   for(const p of players.slice()){
-    if(p.ctrl==='remote' && p.lastRx && now-p.lastRx>10000){ players=players.filter(x=>x!==p); renderLobby(); }
+    if(p.ctrl==='remote' && p.lastRx && now-p.lastRx>10000){ dropPlayer(p.id); }
   }
   const targets=players.filter(p=>p.ctrl==='remote').map(p=>p.id);
   if(targets.length) NET.send(snapshot(),targets);
@@ -1033,7 +1235,7 @@ async function joinRoom(code){
 function hostFound(fail){
   clearInterval(NET.joinTimer);
   mode='online'; setNames(); NET.lastRx=performance.now(); onMsg('');
-  NET.send({t:'h',name:myName(),skin:save.equipped},NET.hostId);
+  NET.send({t:'h',name:myName(),skin:save.equipped,num:myNum},NET.hostId);
   clearInterval(NET.timer);
   NET.timer=setInterval(()=>{
     if(performance.now()-NET.lastRx>8000){ fail('Oda sahibiyle bağlantı koptu.'); return; }
@@ -1052,6 +1254,7 @@ function clientData(d,fail){
   if(d.f && d.f!==curField){ setField(d.f); smooth.clear(); }
   if(d.cfg && JSON.stringify(d.cfg)!==JSON.stringify(cfg)){ cfg=d.cfg; renderCfg(); }
   for(const a of d.p){ if(a[7]>=0 && (!prev || !prev.p.some(b=>b[0]===a[0] && b[7]===a[7]))) beep(660,0.06,'sine',0.05); }
+  if(prev && d.sk && d.sk.ev && d.sk.ev[0]>0 && (!prev.sk || prev.sk.ev[0]!==d.sk.ev[0])){ showToast(d.sk.ev[1]); beep(784,0.08,'square',0.06); }
   updateHUD(d.sL,d.sR,d.tl,d.g);
   if(prev && (d.sL>prev.sL||d.sR>prev.sR)) goalFx(d.sL>prev.sL?'L':'R');
   if(d.st!==state || !prev){
@@ -1061,7 +1264,7 @@ function clientData(d,fail){
     else if((d.st==='play'||d.st==='goal') && old!=='goal' && old!=='play'){ lbMsg(''); showScreen(null); if(document.activeElement) document.activeElement.blur(); beep(2000,0.25,'sine',0.05); }
     else if(d.st==='over' && old!=='over') showOver(d.sL,d.sR);
   }
-  if(d.st==='lobby'){ const sig=JSON.stringify(d.p.map(a=>[a[0],a[1],a[2]])); if(sig!==lastLobbySig){ lastLobbySig=sig; renderLobby(); } }
+  if(d.st==='lobby'){ const sig=JSON.stringify(d.p.map(a=>[a[0],a[1],a[2],a[8]])); if(sig!==lastLobbySig){ lastLobbySig=sig; renderLobby(); } }
 }
 async function netTest(){
   const btn=$('onTest'); if(btn.disabled) return;
@@ -1101,8 +1304,8 @@ async function netTest(){
   onMsg(lines.join('\n'));
 }
 function lobbyList(){
-  if(NET.role==='host') return players.map(p=>({id:p.id,name:p.name,team:p.team}));
-  return NET.snap ? NET.snap.p.map(a=>({id:a[0],name:a[1],team:a[2]})) : [];
+  if(NET.role==='host') return humans(players).map(p=>({id:p.id,name:p.name,team:p.team,num:p.num||''}));
+  return NET.snap ? NET.snap.p.filter(a=>!/^bot\d+$/.test(a[0])).map(a=>({id:a[0],name:a[1],team:a[2],num:a[8]||''})) : [];
 }
 function renderLobby(){
   if(NET.role==='off') return;
@@ -1118,7 +1321,7 @@ function renderLobby(){
   for(const team of ['red','blue']){
     const ul=$(team==='red'?'lbRed':'lbBlue'); ul.innerHTML='';
     for(const p of lobbyList().filter(p=>p.team===team)){
-      const li=document.createElement('li'); li.textContent=p.name+(p.id==='host'?' (oda sahibi)':'');
+      const li=document.createElement('li'); li.textContent=(p.num?`#${p.num} `:'')+p.name+(p.id==='host'?' (oda sahibi)':'');
       if(p.id===me) li.className='me'; ul.appendChild(li);
     }
   }
@@ -1137,17 +1340,41 @@ $('lbCopy').onclick=()=>{
   else lbMsg('Kopyalanamadı, linki elle seç.');
 };
 $('lbShareBtn').onclick=()=>{ try{ navigator.share({title:'Mahalle Kupası',text:'Gel maç yapalım!',url:roomLink(NET.code)}).catch(()=>{}); }catch(e){} };
+function switchTeam(p){
+  const to=p.team==='red'?'blue':'red';
+  if(humans(players).filter(x=>x.team===to).length>=cfg.ts){ if(p.id==='host') lbMsg('Diğer takım dolu.'); return; }
+  p.team=to; renderLobby();
+}
+function removeBots(){ players=players.filter(p=>p.ctrl!=='bot'); }
+function fillBots(){
+  removeBots(); if(!cfg.bf) return;
+  let k=0;
+  for(const team of ['red','blue']){
+    const need=cfg.ts-players.filter(p=>p.team===team).length;
+    for(let i=0;i<need;i++){ k++; players.push(mkPlayer('bot'+k,'Bot '+k,team,null,'bot')); }
+  }
+}
+function dropPlayer(id){
+  const p=players.find(x=>x.id===id); if(!p) return;
+  players=players.filter(x=>x!==p);
+  // maç sürerken ve bot açıkken boşalan yere bot girer
+  if(cfg.bf && (state==='play'||state==='goal') && humans(players).length>0){
+    let k=1; while(players.some(x=>x.id==='bot'+k)) k++;
+    const b=mkPlayer('bot'+k,'Bot '+k,p.team,null,'bot'); b.x=p.x; b.y=p.y; players.push(b);
+  }
+  renderLobby();
+}
 $('lbSwitch').onclick=()=>{
-  if(NET.role==='host'){ const p=players.find(p=>p.id==='host'); if(p){ p.team=p.team==='red'?'blue':'red'; renderLobby(); } }
+  if(NET.role==='host'){ const p=players.find(p=>p.id==='host'); if(p) switchTeam(p); }
   else sendHost({t:'tm'});
 };
 $('lbStart').onclick=()=>{
-  const red=players.filter(p=>p.team==='red').length, blue=players.length-red;
-  if(!red||!blue){ lbMsg('İki takımda da en az bir oyuncu olmalı.'); return; }
-  lbMsg(''); resetMatch(); showScreen(null); if(document.activeElement) document.activeElement.blur();
+  const hs=humans(players), red=hs.filter(p=>p.team==='red').length, blue=hs.length-red;
+  if(!cfg.bf && (!red||!blue)){ lbMsg('İki takımda da en az bir oyuncu olmalı. Ya da "Boş yerlere bot"u aç.'); return; }
+  lbMsg(''); fillBots(); resetMatch(); showScreen(null); if(document.activeElement) document.activeElement.blur();
   state='play'; beep(2000,0.25,'sine',0.05);
 };
-$('overLobby').onclick=()=>{ state='lobby'; resetMatch(); showScreen('lobby'); renderLobby(); };
+$('overLobby').onclick=()=>{ state='lobby'; removeBots(); resetMatch(); showScreen('lobby'); renderLobby(); };
 $('lbLeave').onclick=toMenu;
 function renderCfg(){
   document.querySelectorAll('#lbCfg .seg').forEach(seg=>{
@@ -1158,8 +1385,15 @@ function renderCfg(){
 document.querySelectorAll('#lbCfg .seg button').forEach(b=>b.addEventListener('click',()=>{
   if(NET.role!=='host' || state!=='lobby') return;
   const key=b.parentElement.dataset.k;
-  cfg = {...cfg, [key]: key==='f' ? b.dataset.v : +b.dataset.v};
-  if(key==='f') setField(cfg.f);
+  const val = key==='f' ? b.dataset.v : +b.dataset.v;
+  if(key==='ts'){
+    const hs=humans(players);
+    if(['red','blue'].some(tm=>hs.filter(p=>p.team===tm).length>val)){ lbMsg('Bu boyut için takımlarda fazla oyuncu var.'); return; }
+    lbMsg(''); cfg={...cfg, ts:val, f:FMT_FIELD[val]}; setField(cfg.f);
+  } else {
+    cfg = {...cfg, [key]: val};
+    if(key==='f') setField(cfg.f);
+  }
   resetMatch(); renderCfg();
 }));
 // Hızlı mesaj paneli
@@ -1185,7 +1419,7 @@ const PUB={room:null,send:null,timer:null,announcing:false,list:new Map(),ui:nul
 let pubRoom=true, roomName='';
 const SAHA={s:'Küçük',m:'Orta',l:'Büyük'};
 const defaultRoomName=()=>`${myName()} odası`;
-function adMsg(){ return {t:'ad',code:NET.code,name:(roomName||defaultRoomName()).slice(0,24),host:myName(),n:players.length,max:MAXP,st:state,cfg:{t:cfg.t,g:cfg.g,f:cfg.f}}; }
+function adMsg(){ return {t:'ad',code:NET.code,name:(roomName||defaultRoomName()).slice(0,24),host:myName(),n:humans(players).length,max:cfg.ts*2,st:state,cfg:{t:cfg.t,g:cfg.g,f:cfg.f,sk:cfg.sk,ts:cfg.ts}}; }
 function pubEnsure(){
   if(PUB.room) return Promise.resolve(true);
   if(PUB.joining) return PUB.joining;
@@ -1207,8 +1441,8 @@ function pubEnsure(){
       if(d.t!=='ad') return;
       const cf=d.cfg||{};
       PUB.list.set(code,{code, peer:from, name:String(d.name||d.host||'Oda').slice(0,24), host:String(d.host||'Oyuncu').slice(0,12),
-        n:Math.max(0,Math.min(MAXP,d.n|0)), max:MAXP, st: d.st==='lobby'?'lobby':'play',
-        cfg:{t:[180,300,600].includes(cf.t)?cf.t:180, g:[0,3,5].includes(cf.g)?cf.g:0, f:SAHA[cf.f]?cf.f:'s'}, seen:performance.now()});
+        n:Math.max(0,Math.min(6,d.n|0)), max:[2,4,6].includes(d.max)?d.max:6, st: d.st==='lobby'?'lobby':'play',
+        cfg:{t:[180,300,600].includes(cf.t)?cf.t:180, g:[0,3,5].includes(cf.g)?cf.g:0, f:SAHA[cf.f]?cf.f:'s', sk:[0,1,2].includes(cf.sk)?cf.sk:0, ts:[1,2,3].includes(cf.ts)?cf.ts:3}, seen:performance.now()});
       renderRooms();
     };
     room.onPeerJoin=id=>{ if(PUB.announcing && NET.role==='host') PUB.send(adMsg(),id); };
@@ -1260,12 +1494,12 @@ function renderRooms(){
     row.tabIndex=full?-1:0; row.setAttribute('role','button');
     const c1=document.createElement('div');
     const nm=document.createElement('b'); nm.textContent=r.name;
-    const sub=document.createElement('small'); sub.textContent=`${r.host}`+(innerWidth<=560?` · ${r.cfg.t/60} dk · ${SAHA[r.cfg.f]}`:'');
+    const sub=document.createElement('small'); sub.textContent=`${r.host}`+(innerWidth<=560?` · ${r.cfg.ts}v${r.cfg.ts} · ${r.cfg.t/60} dk${r.cfg.sk?' · ⚡':''}`:'');
     c1.append(nm,sub);
     const c2=document.createElement('span'); c2.className='rm-n'; c2.textContent=`${r.n}/${r.max}`;
     const c3=document.createElement('span'); c3.className='badge '+(full?'play':r.st==='lobby'?'lobby':'play'); c3.textContent= full?'Dolu': r.st==='lobby'?'Lobide':'Maçta';
     c3.style.justifySelf='start';
-    const c4=document.createElement('span'); c4.className='rm-c4'; c4.textContent=`${r.cfg.t/60} dk · ${SAHA[r.cfg.f]} saha${r.cfg.g?` · ${r.cfg.g} gol`:''}`;
+    const c4=document.createElement('span'); c4.className='rm-c4'; c4.textContent=`${r.cfg.ts}v${r.cfg.ts} · ${r.cfg.t/60} dk · ${SAHA[r.cfg.f]} saha${r.cfg.g?` · ${r.cfg.g} gol`:''}${r.cfg.sk===2?' · ⚡ Skilli':r.cfg.sk===1?' · ⚡ Az skill':''}`;
     row.append(c1,c2,c3,c4);
     if(!full){ row.onclick=()=>joinFromList(r.code); row.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); joinFromList(r.code); } }; }
     box.appendChild(row);
@@ -1304,7 +1538,7 @@ if(/^[A-Z0-9]{5}$/.test(hm)){ $('onCode').value=hm; $('onName').value=nameIn.val
 
 // Test için küçük bir iç bakış penceresi (oyunu etkilemez)
 fieldReady=true;
-window.__mk={ball, get pub(){return PUB;}, get cfg(){return cfg;}, get field(){return [W,H,curField];}, get players(){return players;}, get state(){return state;}, get net(){return NET;}, get score(){return [scoreL,scoreR];}, endSoon(){ timeLeft=0.05; }};
+window.__mk={ball, get fmt(){return botTs;}, get sk(){return SK;}, spawn(type){ SK.pickup={type,life:PICK_LIFE}; }, give(i,type){ players[i].slot=type; }, get num(){return myNum;}, get pub(){return PUB;}, get cfg(){return cfg;}, get field(){return [W,H,curField];}, get players(){return players;}, get state(){return state;}, get net(){return NET;}, get score(){return [scoreL,scoreR];}, endSoon(){ timeLeft=0.05; }};
 kickoff(); resize(); updateHUD(0,0,MATCH_SECONDS,false); refreshWallet(); setNames(); requestAnimationFrame(loop);
 })();
 </script>
